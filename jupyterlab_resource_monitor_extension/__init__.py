@@ -7,6 +7,9 @@ except ImportError:
     import warnings
     warnings.warn("Importing 'jupyterlab_resource_monitor_extension' outside a proper installation.")
     __version__ = "dev"
+import atexit
+
+from .metrics import ResourceSampler
 from .routes import setup_route_handlers
 
 
@@ -31,6 +34,12 @@ def _load_jupyter_server_extension(server_app):
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
-    setup_route_handlers(server_app.web_app)
+    sampler = ResourceSampler(log=server_app.log)
+    sampler.start()
+    # Daemon thread already dies with the process; the atexit hook stops the
+    # sampling loop cleanly at interpreter shutdown so it is not left spinning
+    # through a slow teardown.
+    atexit.register(sampler.stop)
+    setup_route_handlers(server_app.web_app, sampler)
     name = "jupyterlab_resource_monitor_extension"
     server_app.log.info(f"Registered {name} server extension")

@@ -3,3 +3,53 @@
 
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
+
+.jp-ResourceMonitor-item {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: var(--jp-ui-font-size1);
+  color: var(--jp-ui-font-color1);
+  white-space: nowrap;
+
+  /* Fixed-width digits, so every digit has the same advance as `1ch` - the
+     unit the numeric columns below reserve their width in. */
+  font-variant-numeric: tabular-nums;
+
+  /* Ease the tint in/out as a calm wash rather than a hard cut. */
+  transition: background-color 240ms ease;
+}
+
+/* A numeric run whose value changes gets a box sized in `ch` (the advance of a
+   digit in whatever font the browser resolves) and right-aligns inside it, so
+   the width is reserved by the CSS box rather than by a padding glyph whose
+   metrics vary across the client fonts a JupyterHub deployment sees. Width is
+   set inline, in format.ts, because the column count depends on the host's
+   memory total. */
+.jp-ResourceMonitor-column {
+  display: inline-block;
+  text-align: right;
+}
+
+/* Honour a reduced-motion preference - drop the tint fade entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .jp-ResourceMonitor-item {
+    transition: none;
+  }
+}
+
+/* Signal pressure with a subtle background tint, keeping the default text
+   colour so the number stays exactly as readable as every other status bar
+   item (a coloured text foreground fails AA contrast on some themes). The
+   background does not change the box size, so the row never reflows. The
+   solid rgba is a fallback for browsers without color-mix (< 2023); the
+   color-mix override is theme-aware where supported. */
+.jp-ResourceMonitor-item.jp-ResourceMonitor-warn {
+  background-color: rgb(245 124 0 / 30%);
+  background-color: color-mix(in srgb, var(--jp-warn-color1) 30%, transparent);
+}
+
+.jp-ResourceMonitor-item.jp-ResourceMonitor-danger {
+  background-color: rgb(244 67 54 / 35%);
+  background-color: color-mix(in srgb, var(--jp-error-color1) 35%, transparent);
+}

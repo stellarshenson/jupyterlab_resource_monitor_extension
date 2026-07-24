@@ -4,26 +4,29 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
 
-class HelloRouteHandler(APIHandler):
-    # The following decorator should be present on all verb methods (head, get, post,
-    # patch, put, delete, options) to ensure only authorized user can request the
-    # Jupyter server
+
+class MetricsRouteHandler(APIHandler):
+    """Returns the latest cached resource snapshot.
+
+    Never collects metrics inline - the sampler thread owns collection, so
+    this handler's cost is constant regardless of system state.
+    """
+
+    def initialize(self, sampler):
+        self._sampler = sampler
+
     @tornado.web.authenticated
     def get(self):
-        self.finish(json.dumps({
-            "data": (
-                "Hello, world!"
-                " This is the '/jupyterlab-resource-monitor-extension/hello' endpoint."
-                " Try visiting me in your browser!"
-            ),
-        }))
+        self.finish(json.dumps(self._sampler.snapshot()))
 
 
-def setup_route_handlers(web_app):
+def setup_route_handlers(web_app, sampler):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
 
-    hello_route_pattern = url_path_join(base_url, "jupyterlab-resource-monitor-extension", "hello")
-    handlers = [(hello_route_pattern, HelloRouteHandler)]
+    metrics_route_pattern = url_path_join(
+        base_url, "jupyterlab-resource-monitor-extension", "metrics"
+    )
+    handlers = [(metrics_route_pattern, MetricsRouteHandler, {"sampler": sampler})]
 
     web_app.add_handlers(host_pattern, handlers)

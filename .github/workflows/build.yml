@@ -160,3 +160,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
       - uses: jupyterlab/maintainer-tools/.github/actions/check-links@v1
+        with:
+          # npm and pepy 403 automated checkers permanently. The pypi.org
+          # pattern is temporal, not permanent - PyPI serves checkers fine and
+          # only 404s until the first release, so TODO(post-release): drop it,
+          # or a genuinely dead PyPI link passes CI silently forever.
+          ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.* https://pypi.org/project/.*"

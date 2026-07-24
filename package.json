@@ -1,15 +1,15 @@
 {
     "name": "jupyterlab_resource_monitor_extension",
-    "version": "0.1.0",
+    "version": "1.0.11",
     "description": "Jupyterlab extension to replace jupyter-resource-usage with less intrusive and better implementation for resource usage",
     "keywords": [
         "jupyter",
         "jupyterlab",
         "jupyterlab-extension"
     ],
-    "homepage": "",
+    "homepage": "https://github.com/stellarshenson/jupyterlab_resource_monitor_extension",
     "bugs": {
-        "url": "/issues"
+        "url": "https://github.com/stellarshenson/jupyterlab_resource_monitor_extension/issues"
     },
     "license": "BSD-3-Clause",
     "author": {
@@ -26,7 +26,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": ".git"
+        "url": "https://github.com/stellarshenson/jupyterlab_resource_monitor_extension.git"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
@@ -58,7 +58,10 @@
     "dependencies": {
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/coreutils": "^6.0.0",
-        "@jupyterlab/services": "^7.0.0"
+        "@jupyterlab/services": "^7.0.0",
+        "@jupyterlab/statusbar": "^4.0.0",
+        "@lumino/polling": "^2.0.0",
+        "@lumino/widgets": "^2.0.0"
     },
     "devDependencies": {
         "@eslint/js": "^9.0.0",
@@ -83,12 +86,17 @@
         "stylelint-config-standard": "^34.0.0",
         "stylelint-csstree-validator": "^3.0.0",
         "stylelint-prettier": "^4.0.0",
-        "typescript": "~5.5.4",
+        "typescript": "~5.8.0",
         "typescript-eslint": "^8.0.0",
         "yjs": "^13.5.0"
     },
     "resolutions": {
+        "chalk": "4.1.2",
         "lib0": "0.2.111",
+        "webpack": "5.106.0"
+    },
+    "overrides": {
+        "chalk": "4.1.2",
         "webpack": "5.106.0"
     },
     "sideEffects": [

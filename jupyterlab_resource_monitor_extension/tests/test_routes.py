@@ -1,17 +1,13 @@
 import json
 
 
-async def test_hello(jp_fetch):
+async def test_metrics(jp_fetch):
     # When
-    response = await jp_fetch("jupyterlab-resource-monitor-extension", "hello")
+    response = await jp_fetch("jupyterlab-resource-monitor-extension", "metrics")
 
     # Then
     assert response.code == 200
     payload = json.loads(response.body)
-    assert payload == {
-            "data": (
-                "Hello, world!"
-                " This is the '/jupyterlab-resource-monitor-extension/hello' endpoint."
-                " Try visiting me in your browser!"
-            ),
-        }
+    assert set(payload) == {"mem", "cpu", "ts"}
+    assert set(payload["mem"]) == {"used_bytes", "total_bytes", "limit_source"}
+    assert set(payload["cpu"]) == {"percent", "cpu_count"}

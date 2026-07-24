@@ -38,8 +38,10 @@ export async function requestAPI<T>(
   if (data.length > 0) {
     try {
       data = JSON.parse(data);
-    } catch (error) {
-      console.log('Not a JSON response body.', response);
+    } catch {
+      // A non-JSON body (e.g. the server's HTML 404 page when the extension
+      // is absent) is surfaced via the thrown ResponseError below - do not
+      // log per call, or a missing endpoint spams the console on every poll.
     }
   }
 

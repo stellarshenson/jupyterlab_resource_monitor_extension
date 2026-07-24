@@ -1,0 +1,115 @@
+# Acceptance Criteria - Resource Monitor Status Bar
+
+Status bar shows memory usage (with max available) and CPU usage, fed by a server-side background sampler that caches an O(1) snapshot - handlers never collect metrics inline and cost never scales with the server's child process count.
+
+- [x] **Memory item** - status bar shows current memory used and max available, format `Mem: <used> / <total>` with human-readable units
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: implemented, verified visually via Playwright (v0.1.1)
+- [x] **CPU item** - status bar shows current CPU utilization percent, format `CPU: <n>%`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: implemented, verified visually via Playwright (v0.1.1)
+- [x] **Container-aware limits** - memory total and CPU capacity read from cgroup v2 (`memory.max`, `cpu.max`) when present, fallback to `/proc/meminfo` and `os.cpu_count()`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: implemented with working-set convention, unit tested (v0.1.1)
+- [x] **O(1) collection** - sampler reads a fixed set of files (`/sys/fs/cgroup/*`, `/proc/meminfo`, `/proc/stat`); never calls `psutil`, never walks `/proc/<pid>` per process, cost independent of child process count
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: benchmarked flat 0.104ms@172 vs 0.113ms@872 procs (v0.1.1)
+- [x] **Off-loop sampling** - sampler runs on a background thread on its own cadence; no metric collection happens inside a request handler coroutine
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: daemon thread sampler, handlers read cache only (v0.1.1)
+- [x] **Cached handler** - `GET /metrics` returns the latest cached snapshot immediately; response time independent of sampling
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: endpoint 0.84ms mean with +700 procs (v0.1.1)
+- [x] **Sampler lifecycle** - sampler thread starts on server extension load, is a daemon thread that does not block shutdown, and its loop is stopped at interpreter exit via an `atexit` hook calling `stop()`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: daemon thread started on extension load (v0.1.1)
+  - log: 2026-07-24 reworded and wired: `atexit.register(sampler.stop)`, `stop()` idempotent, `test_stop_is_idempotent` (v0.1.2)
+- [x] **Frontend polling** - frontend polls the metrics endpoint on a fixed interval (default 5s), one request feeding both status bar items
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: lumino Poll 5s interval, backoff, standby when-hidden, single request feeds both items (v0.1.1)
+- [x] **Activation message** - `console.log('JupyterLab extension jupyterlab_resource_monitor_extension is activated!')` present for UI test compatibility
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: preserved, seen in browser console (v0.1.1)
+- [x] **Edge: server extension missing** - frontend polling failure hides or blanks the status bar items and logs a console warning, no repeated error spam
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: items hidden, single console.warn, Poll backs off (v0.1.1)
+- [x] **Edge: no cgroup limit** - `memory.max` = `max` (unlimited) falls back to host `MemTotal` from `/proc/meminfo`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: falls back to MemTotal, unit tested (v0.1.1)
+- [x] **Edge: first sample** - CPU percent needs two samples for a delta; first snapshot reports 0 without error
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: returns 0 without error, unit tested (v0.1.1)
+- [x] **Tests: sampler unit tests** - pytest covers memory/CPU parsing, cgroup fallback, and snapshot caching without a running server
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: 9 pytest unit tests green (v0.1.1)
+- [x] **Tests: handler test** - pytest-jupyter test asserts `GET /metrics` returns the snapshot shape
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: jp_fetch test green (v0.1.1)
+- [x] **Build green** - `make install` succeeds, `jupyter server extension list` and `jupyter labextension list` show OK, jest and pytest pass
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: make install OK, lists OK, jest 6 + pytest 10 green (v0.1.1)
+
+- [x] **Container-aware self cgroup** - sampler resolves its own cgroup via `/proc/self/cgroup` (`0::` line) and reads the limit from that subdir, so the container limit is visible under `--cgroupns=host` and systemd spawners; falls back to the mount root then `/proc`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: resolves /proc/self/cgroup, test_cgroup_self_resolution (v0.1.2)
+- [x] **Robust parsing** - malformed `memory.max` or `cpu.max` never crashes the sampler loop or freezes the snapshot; both route through tolerant parsing and fall back
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: tolerant memory.max/cpu.max, two pytest cases (v0.1.2)
+  - log: 2026-07-24 extended: a masked or truncated /proc/stat (no idle column) and a valueless cpu.stat key now take the sentinel instead of raising, so a CPU-side read failure no longer discards the memory reading collected in the same sample (v0.1.8)
+- [x] **CPU accuracy** - `/proc/stat` fallback sums fields 0-7 only, excluding guest/guest_nice already folded into user/nice
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: sum(fields[:8]), test_proc_stat_excludes_guest_time (v0.1.2)
+- [x] **Memory warning state** - memory item shows a warn background tint at >=90% and an error tint at >=95% with hysteresis (warn exit 85%, danger exit 92%); the tint keeps the default text colour (AA-safe) and does not change box size, so the row never reflows
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: memoryLevel hysteresis + colour-only CSS, 4 jest cases (v0.1.2)
+  - log: 2026-07-24 revised: switched text-colour to background tint after round-2 ux found the warn foreground failed AA contrast; percentage now always shown, memory min-width added (v0.1.3)
+- [x] **No visual jitter** - each changing numeric run (memory used, expressed in the total's unit, and both percentages) renders in a box sized in `ch` and right-aligned, so the width is reserved by the CSS box rather than any glyph metric; neither item shifts its neighbours as digits, units or the level change
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: tabular-nums + cpu min-width (v0.1.2)
+  - log: 2026-07-24 extended: memory min-width added and percentage always shown so no threshold-crossing reflow (v0.1.3)
+  - log: 2026-07-24 revised: min-width is only a floor and grew past on large-RAM nodes (round-3 ux); replaced with figure-space padding to a constant per-host width, jest asserts the invariant (v0.1.4)
+  - log: 2026-07-24 extended: browser measurement found the CPU item still jittered 57->69px (bounded but unpadded); padded its percent too, U+2007 verified digit-width, cpuConstant true (v0.1.5)
+  - log: 2026-07-24 revised: round-4 ux found the constant width rested on the U+2007 glyph metric, which varies across client fonts; replaced padding with ch-sized right-aligned columns, browser-measured constant at 167.31px / 69.47px (v0.1.7)
+  - log: 2026-07-24 guarded: round-6 ux flagged the invariant had no browser-level guard after five regressions; added Galata test asserting equal boundingBox width and no column overflow across value extremes, negative control confirms it diverges 177->209px without the ch box (v0.1.8)
+- [x] **Denominator tooltips** - tooltip shows `CPU: n% of N CPUs` and memory used/total/percent with the ceiling's provenance (container limit vs host RAM) and severity word, via `title` (mouse) and `aria-label` on a `role="img"` node (screen reader and touch)
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: title tooltips with cpu_count and mem percent (v0.1.2)
+  - log: 2026-07-24 extended: aria-label added alongside title for keyboard/touch (v0.1.3)
+  - log: 2026-07-24 corrected: role="img" so aria-label is honoured (screen reader/touch, not keyboard tab-focus); tooltip now carries limit provenance and severity word (v0.1.4)
+  - log: 2026-07-24 extended: round-8 ux found cpu_count (a quota/period ratio) reached the tooltip unrounded; display now clamps to 2dp, server value stays exact for the percent maths (v0.1.10)
+  - log: 2026-07-24 extended: round-9 architect noted tooltip assembly sat in index.ts, which jest cannot reach, so the DEF-30 fix shipped untested; moved to memoryTooltip/cpuTooltip in format.ts with 5 jest cases (limit labelling, severity words, pluralisation, quota-ratio rounding), format.ts now 100% statements (v0.1.11)
+- [x] **Edge: transient failure** - a single failed poll keeps the last values; items hide only after 3 consecutive failures, so a laptop-wake or proxy blip does not read as a crash
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: HIDE_AFTER_FAILURES=3 counter (v0.1.2)
+- [x] **Edge: stale snapshot** - frontend hides both items after 3 polls with an unchanged `ts`, never presenting a frozen snapshot as live
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: STALE_AFTER_POLLS=3 ts guard (v0.1.2)
+- [x] **Edge: zero-state** - when `total_bytes <= 0` (no /proc, hardened host) both items hide instead of rendering `Mem: 0 / 0 MB` as live data
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: total<=0 hides items (v0.1.2)
+- [x] **Percentage always shown** - the used-of-limit percentage is shown in every state (not only warn/danger), as the glanceable ceiling signal and to keep the item width constant
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: always passed to formatMemoryText, jest covers suffix (v0.1.3)
+- [x] **Byte units to TB** - `formatBytes` scales through MB/GB/TB so large multi-user nodes read `1.0 TB` not `1024.0 GB`
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: TB branch, formatBytes jest case (v0.1.3)
+  - log: 2026-07-24 extended: round-7 ux found the tier was picked from the raw value while display rounds, so 1023.99 GiB rendered '1024.0 GB' - the exact string this criterion exists to prevent; tier now promotes at the rounded boundary, jest covers both boundaries (v0.1.9)
+  - log: 2026-07-24 extended: jest now covers the TB used-value path the round-8 bug-hunter found uncovered (v0.1.10)
+- [x] **Robust proc fallback** - `/proc/meminfo` used falls back to `MemFree` when `MemAvailable` is absent (pre-3.14 kernels), never reporting the full total as used
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: MemFree fallback, test_proc_memory_fallback_without_memavailable (v0.1.3)
+- [x] **Tests: Galata UI** - a Galata integration test asserts the memory and CPU status items reach the DOM with live text, failing on any packaging or wiring break
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: 2 Galata tests green: status items visible with live text + activation (v0.1.2)
+  - log: 2026-07-24 extended: third Galata test pins the rendered width invariant in a real browser (v0.1.8)
+- [x] **CPU carries no pressure state** - the warn/danger tint applies to the memory item only; sustained 100% CPU is normal during legitimate compute, so tinting it would signal alarm on every training run - the asymmetry is deliberate, not an oversight
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: documented after round-7 ux endorsed the design but flagged it as undocumented (v0.1.9)
+- [x] **CI green** - every gate in `build.yml` passes: `lint:check`, `jlpm run test`, `pytest --cov`, both extension-list greps, `jupyterlab.browser_check`, wheel build with no duplicate paths, isolated-wheel install, Galata; `check_links` ignores registry badge URLs that 403 or 404 pre-release
+  - log: 2026-07-24 added
+  - log: 2026-07-24 closed: all gates run locally in CI-equivalent isolated venvs - pytest 20 at 96% cov, jest 17, Galata 3, browser_check exit 0 (clean env, settling DEF-2 as environmental), wheel clean, isolated install greps 0, lint 0; DEF-29 ignore_links added (v0.1.9)
+
+## API
+
+- `GET /jupyterlab-resource-monitor-extension/metrics` -> `{mem: {used_bytes, total_bytes, limit_source}, cpu: {percent, cpu_count}, ts}`; `limit_source` is `"cgroup"` (container limit) or `"host"` (physical RAM); 200 always once loaded, values from latest cached sample
+- Server samples every 5s (background thread) and the frontend polls every 5s (independent cadences), so displayed values can be up to ~10s stale in the worst case
