@@ -39,6 +39,8 @@ Always use the project Makefile for the entire build lifecycle - never run `pip`
 - `make clean` - clean build artefacts
 - `make mrproper` - remove all build and venv artefacts
 
+**`make publish` is the only release path.** The jupyter-releaser `prep-release` and `publish-release` workflows were removed in v1.0.25: they own the version and the upload just as the Makefile does, and two live mechanisms can disagree about what the next version is. `check-release.yml` stays - it validates that the package is releasable and never publishes.
+
 ## Mandatory Repository Rules
 
 - Always commit both `package.json` and `package-lock.json` together

@@ -1,5 +1,13 @@
-# Makefile for Jupyterlab extensions version 1.35
+# Makefile for Jupyterlab extensions version 1.36
 # changelog:
+#   1.36 - `test` runs the Python suite too, not just jlpm. It ran `jlpm test` alone,
+#          so on any extension with a server side a Python regression passed local
+#          verification and only failed in CI. pytest now runs whenever the package
+#          has a tests/ directory, and is skipped with a message when it does not,
+#          so frontend-only extensions are unaffected. No --cov: coverage is a CI
+#          concern, and requiring pytest-cov would make `make test` fail on an
+#          otherwise working dev env. Also corrects the author address to the
+#          +github alias used everywhere else.
 #   1.35 - resolve node and npm exclusively from the project-local nodeenv via $(NODE)
 #          and $(NPM) instead of bare names, and read VERSION lazily at recipe time
 #          rather than at parse time. VERSION := $(shell command -v node ...) was
@@ -25,7 +33,7 @@
 #   1.30 - check twine in check_dependencies, ensure publish doesn't fail on missing twine
 #   1.29 - replace yarn with jlpm, add prettier format, auto-commit and push after publish
 #   1.28 - initial versioned Makefile
-# author: Stellars Henson <konrad.jelen@gmail.com>
+# author: Stellars Henson <konrad.jelen+github@gmail.com>
 # License: MIT Open Source License
 
 .PHONY: build install clean uninstall publish dependencies mrproper increment_version install_dependencies check_dependencies upgrade help test
@@ -42,6 +50,10 @@ export PATH := $(NODEENV)/bin:$(PATH)
 # Deliberately lazy (`=`, not `:=`): a parse-time read happens before check_dependencies
 # has created the nodeenv, and an ambient node on PATH would silently mask that.
 VERSION = $(shell $(NODE) -p "require('./package.json').version" 2>/dev/null)
+
+# Python package name, taken from the labextension output dir. Lazy for the same
+# reason as VERSION: $(NODE) does not exist until check_dependencies has run.
+PYTHON_NAME = $(shell $(NODE) -p "require('./package.json').jupyterlab.outputDir.split('/')[0]" 2>/dev/null)
 
 ## increment project version
 increment_version: check_dependencies
@@ -73,7 +85,11 @@ install: build
 ## run tests
 test: check_dependencies
 	jlpm test
-	pytest -vv -r ap --cov jupyterlab_resource_monitor_extension
+	@if [ -d "$(PYTHON_NAME)/tests" ]; then \
+		pytest -vv -r ap; \
+	else \
+		echo "test: no $(PYTHON_NAME)/tests directory - skipping pytest"; \
+	fi
 
 ## clean builds and installables
 clean: uninstall  check_dependencies

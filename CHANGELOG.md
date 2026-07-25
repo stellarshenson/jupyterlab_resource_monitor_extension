@@ -2,6 +2,18 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.25] - 2026-07-25
+
+Release-tooling only. No functional change to the extension.
+
+### Changed
+
+- `make test` now runs the Python suite alongside the frontend one, so a server-side regression is caught locally rather than only in CI
+- `make publish` is the sole release path; the `prep-release` and `publish-release` workflows are removed because they own the version and the upload just as the Makefile does, and two live mechanisms can disagree on the next version
+- `check-release.yml` is retained - it validates that the package is releasable and never publishes
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.24] - 2026-07-25
 
 First published release. Replaces `jupyter-resource-usage` with an implementation that never collects metrics on the tornado event loop.
@@ -23,5 +35,3 @@ First published release. Replaces `jupyter-resource-usage` with an implementatio
 - The memory percentage is hidden inline by default; the tooltip always carries the full detail
 - The kernel process walk is bounded by a file-read budget rather than a process count, and enumerates threads with `os.scandir` so the budget stops the enumeration itself instead of only the reads
 - Status bar item visibility is delegated to `IStatusBar` through `isActive`/`activeStateChanged`, so a tab open no longer undoes it
-
-<!-- <END NEW CHANGELOG ENTRY> -->
