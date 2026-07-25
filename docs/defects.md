@@ -20,6 +20,15 @@
 - [x] `DEF-31` **jupyter-builder uncapped in the dev extra** - LOW; `build-system.requires` and the releaser hook both pin `jupyter-builder>=1.0.0,<2` but the `dev` extra left it uncapped, so a dev env could resolve a 2.x the build backend itself rejects; fix: added the `,<2` cap; `pyproject.toml`
   - 2026-07-24 reported: adversarial round 8 architect (MINOR)
   - 2026-07-24 fixed: dev extra now matches the other two constraints (v0.1.10)
+- [x] `DEF-32` **Galata status bar assertion still required the memory percentage** - MEDIUM; the `toHaveText(/^Mem:.*\d+%\)$/)` assertion demanded the `(NN%)` suffix, so flipping `showMemoryPercent` to default false (v1.0.18) left a test that could never pass - Galata was green at v1.0.17 and would have gone red on the next CI run; fix: assertion now matches the default flush text `Mem: N / N GB` and additionally pins the tooltip, which stays complete whatever the display settings hide; `ui-tests/tests/statusbar.spec.ts`
+  - 2026-07-25 reported: found running the CI gates locally after the default flip, not by an adversary
+  - 2026-07-25 fixed: text assertion matches the default, plus new tooltip assertions for both items; Galata 2 passed (v1.0.18)
+- [x] `DEF-40` **skipLibCheck masked a module-resolution misconfiguration** - MEDIUM; `skipLibCheck` was added on the false premise that `vscode-languageserver-protocol` was an unshipped type-only dep - it is installed and declared by `@jupyterlab/lsp`; the real cause was `moduleResolution: node` being unable to read that package's `exports` map, and skipLibCheck silently disabled .d.ts checking for every future dependency; fix: `moduleResolution: bundler`, skipLibCheck removed, `tsc --noEmit` clean; `tsconfig.json`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-41` **jest could not transform an ESM dependency of the icon module** - LOW; importing `@jupyterlab/ui-components` pulls `@jupyter/react-components`, which ships ESM and was not in the jest `esModules` transform list, so any suite importing the icon failed to parse; fix: added the react/web components, @microsoft and exenv-es6 to the list; `jest.config.js`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
 
 ## Metrics collection
 
@@ -41,6 +50,27 @@
 - [x] `DEF-26` **IndexError in /proc CPU parsers escaped the degradation path** - LOW; `_read_proc_stat` indexed `fields[3]` outside its try and `_read_stat_key` indexed `split()[1]` with an except tuple missing IndexError, so an empty or truncated /proc/stat (a /dev/null bind-mount opens and reads fine, so the OSError guard never fires) raised instead of taking the (0,0) sentinel - aborting `sample_once` after `_read_memory` had already succeeded, discarding a good memory reading and freezing the snapshot until the frontend stale-hid both items; fix: length guard before the idle column and IndexError added to the except tuple, both routing into the existing sentinel; `metrics.py`
   - 2026-07-24 reported: adversarial round 6 bug-hunter (LOW), runtime-reproduced locally on all three inputs
   - 2026-07-24 fixed: len(fields) < 4 sentinel + IndexError in _read_stat_key; regression tests test_proc_stat_without_idle_column_degrades (parametrized empty/truncated, asserts memory still flows) and test_stat_key_without_value_returns_none; pytest 20 green (v0.1.8)
+- [x] `DEF-33` **single-slot kernel watch thrashed with two open panels** - MEDIUM; `KernelSampler` held ONE watch, and `watch()` cleared the cached sample and CPU baseline whenever the named kernel differed from the current slot; with two notebooks open in two browser tabs each panel's poll evicted the other's, so both sat on `Measuring...` indefinitely and neither ever accumulated a CPU delta; fix: watches, baselines and samples are now per-kernel dicts, expired by lease independently, and the /proc walks run outside the lock; `kernels.py`
+  - 2026-07-25 reported: found by reasoning through the two-tab case while the pre-release architect review was running
+  - 2026-07-25 fixed: per-kernel _watches/_prev/_samples; regression tests test_two_watched_kernels_do_not_evict_each_other and test_expired_watch_does_not_evict_a_live_one; pytest 34, kernels.py 92%
+- [x] `DEF-35` **os.sysconf at import time broke the package off-Linux** - HIGH; `kernels.py` called `os.sysconf` at module scope for `SC_CLK_TCK`/`SC_PAGE_SIZE`, and `__init__.py` imports `.kernels` unconditionally, so on Windows importing the package raised AttributeError and took the whole server extension down - a wheel that cannot import; the `or 100` fallback was also wrong, since sysconf returns -1 (not 0) when indeterminate, which would have made every cpu_percent negative; fix: `_sysconf()` helper catching AttributeError/ValueError/OSError and rejecting non-positive values; `kernels.py`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-36` **kernel sampler logged a traceback every interval** - MEDIUM; `_run` warned on every failed iteration where `metrics.py` carries a `_warned` one-shot, so a persistent failure would write ~43k stack traces a day into the server log; fix: adopted the same warn-once flag; `kernels.py`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-37` **one timestamp shared across the whole walk loop** - LOW; `sample_once` took `now` once before iterating and used it as both delta denominator and stored baseline for every kernel, so a kernel late in the list was charged the walk time of the ones before it; fix: timestamp taken per kernel immediately after its own walk; `kernels.py`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-44` **walk bound counted processes, not the work per process** - MEDIUM; `_MAX_PROCS` charged one unit per process while `_read_proc` globs and reads `task/*/children` once per thread, so a 300-thread torch kernel cost ~77x a single-threaded one and the advertised bound was not the real one; fix: budget counts file reads (`_MAX_READS`), charged for every task-dir read; `kernels.py`
+  - 2026-07-25 reported: pre-release adversarial review, architect confirming round
+  - 2026-07-25 fixed: in the same pass; jest 69, pytest 34, Galata 2, lint 0, tsc 0 (v1.0.23)
+- [x] `DEF-45` **read budget did not bound thread enumeration** - glob.glob materialised (and sorted) the whole task/* thread list before the first budget check, so a 5000-thread kernel cost 5000 uncharged directory entries regardless of _MAX_READS; cause: glob is eager, and glob.iglob is too (CPython materialises the wildcard component); fix: os.scandir with the budget check inside the loop, charging one read per thread dir; `kernels.py`
+  - 2026-07-25 reported: found by architect adversarial review round 2; test_thread_enumeration_stops_at_the_budget measures entries consumed - 501 under glob, 49 under scandir
+  - 2026-07-25 fixed: os.scandir with the budget check inside the loop; test proves 501 entries under glob vs 49 under scandir, pytest 35 green (v1.0.23)
+- [x] `DEF-51` **kernel sampler walked 2.5x more often than anything read** - the kernel sampler ran at 2.0s while its only consumer polls at 5.0s, so roughly 1.5 of every 2.5 process-tree walks were discarded unread - work done for nobody, against the bounded-cost mandate; cause: the interval was never matched to the poll, unlike the host sampler at 5.0s; fix: interval 5.0s; `kernels.py`
+  - 2026-07-25 reported: found by architect adversarial review round 3
+  - 2026-07-25 fixed: interval 5.0s, matching the panel poll and the host sampler; pytest 35 green (v1.0.24)
 
 ## Status bar UX
 
@@ -89,6 +119,7 @@
 - [x] `DEF-25` **constant width depended on the U+2007 glyph metric** - LOW; DEF-21/DEF-24 held the item width steady by padding with U+2007 FIGURE SPACE, which assumes every client font metrics that glyph at exactly one digit width - true on this host but not guaranteed across the Segoe UI / SF / DejaVu mix a JupyterHub deployment sees, so a mis-metriced font would reintroduce the neighbour-nudge; fix: dropped the padding and gave each changing numeric run an inline-block box sized in `ch` and right-aligned, so the reservation comes from the CSS box; `src/format.ts`, `src/index.ts`, `style/base.css`
   - 2026-07-24 reported: adversarial round 4 ux finding 1 (MINOR)
   - 2026-07-24 fixed: ISegment columns + .jp-ResourceMonitor-column ch box; browser-measured constant 167.31px memory / 69.47px CPU across value extremes, 1ch == 6.119px == tabular digit advance; jest 16, pytest 17, galata 2 green (v0.1.7)
+  - 2026-07-25 superseded: the ch-column width reservation this fix introduced was removed at user request (flush text preferred over constant width); no defect - a product decision, recorded so the width-saga trail stays coherent (v1.0.13)
 - [x] `DEF-27` **unit tier picked from the raw value while display rounds** - LOW; `formatBytes` chose the tier from raw bytes but rounded for display, so a total in [1023.95, 1024) GiB rendered `1024.0 GB` and one just under 1 GiB rendered `1024 MB` - the exact strings DEF-18's TB tier was raised to kill; reachable when a cgroup limit sits a few tens of MB under a power boundary; fix: promote the tier at the rounded boundary, not the raw one; `src/format.ts`
   - 2026-07-24 reported: adversarial round 7 ux (MINOR), reproduced in node before fixing
   - 2026-07-24 fixed: tier promotes when the rounded value reaches the next tier's floor, jest covers both boundaries and the non-promoting neighbour; jest 17 green (v0.1.9)
@@ -96,6 +127,24 @@
   - 2026-07-24 reported: adversarial round 8 ux (MINOR)
   - 2026-07-24 fixed: display-site rounding, pluralisation still correct for 1.0 (v0.1.10)
   - 2026-07-24 relocated: display rounding moved out of `src/index.ts` into `cpuTooltip` in `src/format.ts`, where jest can reach it - round-9 architect noted the fix had shipped untested; five jest cases now pin it and format.ts is at 100% statements (v0.1.11)
+- [x] `DEF-34` **panel signal connection outlived the disposed panel** - MEDIUM; `KernelUsagePanel` connected to `INotebookTracker.currentChanged` with a bare arrow function and no receiver context, so `Widget.dispose()`'s `Signal.clearData(this)` could not reclaim it; after toggling `showKernelUsage` off the slot survived and the next notebook switch called `refresh()` on a disposed Poll; the closure also read `this._poll` before the field was assigned; fix: named handler connected with `this` as receiver and explicitly disconnected in `dispose`, and the poll is constructed before the connection; `src/kernelpanel.ts`
+  - 2026-07-25 reported: found by inspection during the pre-release review window
+  - 2026-07-25 fixed: _onNotebookChanged connected with this as receiver, disconnected in dispose, poll constructed first; build and lint clean
+- [x] `DEF-38` **kernel panel reimplemented degradation the status bar already solved** - MEDIUM; the panel showed `Unavailable` on the FIRST failed poll where the status bar tolerates three (DEF-10), declared `ts` but never used it so a wedged sampler kept stale numbers on screen forever (DEF-6), and had no zero guard so a dead PID rendered `Memory 0 MB / CPU 0%` as live (DEF-7); fix: extracted `kernelPanelState` into `src/state.ts` and routed the panel through it; `src/kernelpanel.ts`, `src/state.ts`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-39` **panel CPU percent had different meaning from the status bar with nothing to reconcile them** - MEDIUM; the status bar reports a normalised 0-100% share of all cores while the panel reports an unclamped per-core top-style share, so the two could read `CPU: 4%` and `CPU: 380%` at once with no explanation and no tooltip; fix: the panel's CPU row now carries a title and aria-label naming the denominator; `src/kernelpanel.ts`
+  - 2026-07-25 reported: pre-release adversarial review, architect
+  - 2026-07-25 fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [x] `DEF-42` **status bar item visibility was not the plugin's to control** - HIGH; the plugin called `show()`/`hide()` on its items, but `StatusBar._refreshItem` decides visibility from `isActive()` at registration and again on every `update-request` - and with no `isActive` supplied the default is `() => true`, so every tab open, close or sidebar toggle re-showed the items; verified in the installed source (`statusbar.js:121-131`); this silently unenforced the stale guard, the zero-state guard, the endpoint-missing guard and both show-item settings, any of which could resurface as a frozen or empty item on the next layout change; fix: `ResourceItem` exposes `active` plus an `activeChanged` signal and the plugin registers with `isActive`/`activeStateChanged`, so framework and plugin compose instead of fighting; `src/item.ts`, `src/index.ts`
+  - 2026-07-25 reported: pre-release adversarial review, architect confirming round
+  - 2026-07-25 fixed: in the same pass; jest 69, pytest 34, Galata 2, lint 0, tsc 0 (v1.0.23)
+- [x] `DEF-43` **panel aria-label on a role-less div repeated DEF-22** - MEDIUM; the kernel panel's CPU row carried an `aria-label` on a bare div, the exact pattern DEF-22 fixed for the status bar, so the denominator explanation reached mouse users only; fix: `role="img"` alongside the aria-label, matching `item.ts`; `src/kernelpanel.ts`
+  - 2026-07-25 reported: pre-release adversarial review, architect confirming round
+  - 2026-07-25 fixed: in the same pass; jest 69, pytest 34, Galata 2, lint 0, tsc 0 (v1.0.23)
+- [x] `DEF-47` **kernelPanelState failure branch was dead code** - the extracted kernelPanelState carried an unreachable failure branch and an 'unavailable' state member, with a green jest case covering it; cause: the panel was changed to count failures itself against shouldHideOnFailure but still passed a literal failures: 0, so the branch never ran; fix: dropped the failures option, the branch, the union member and the jest case, leaving one degradation policy; `src/state.ts`
+  - 2026-07-25 reported: found by architect adversarial review round 2
+  - 2026-07-25 fixed: failures option, branch, union member and jest case removed; jest 74 green, state.ts still 100% (v1.0.23)
 
 ## Lifecycle and packaging
 
@@ -108,3 +157,15 @@
 - [x] `DEF-15` **package.json ships placeholder metadata** - LOW; `homepage:""`, `bugs.url:"/issues"`, `repository.url:".git"` copier stubs would publish broken links to npm and (via hatch-nodejs urls) PyPI; fix: filled all three with the real GitHub URLs; `package.json`
   - 2026-07-24 reported: adversarial architect + bug-hunter findings
   - 2026-07-24 fixed: real repository/homepage/bugs URLs
+- [x] `DEF-46` **author.name embedded the email, doubling it in registry metadata** - HIGH; built wheel carried Author-email: "Stellars Henson <konrad.jelen+github@gmail.com>" <konrad.jelen+github@gmail.com>, and npm rendered the same doubling; cause: package.json author.name contained <email> while a separate author.email field also existed, and hatch-nodejs maps both through; fix: author.name reduced to the bare name; `package.json`
+  - 2026-07-25 reported: found by architect adversarial review round 2 before first publish - registry metadata is immutable once a version is live
+  - 2026-07-25 fixed: author.name is the bare name, email left as the only address; verified in a rebuilt wheel's METADATA (v1.0.23)
+- [x] `DEF-48` **sdist shipped .claude with local filesystem paths** - HIGH; the source distribution carried `.claude/CLAUDE.md` and `.claude/JOURNAL.md`, exposing /home/lab paths and local skill locations on PyPI permanently; cause: the hatch sdist exclude listed only .github and binder while .claude is a tracked directory; fix: added .claude to the sdist exclude; `pyproject.toml`
+  - 2026-07-25 reported: found by architect adversarial review round 3, before first publish
+  - 2026-07-25 fixed: .claude added to the hatch sdist exclude; verified absent from a rebuilt sdist (v1.0.24)
+- [x] `DEF-49` **no platform limitation declared for a Linux-only sampler** - the package advertised universal support - no Operating System classifier, py3-none-any wheel, README listing only JupyterLab >= 4 - while both samplers read cgroup v2 and /proc exclusively, so macOS and Windows silently show nothing at all with no error; cause: the limitation was never written down; fix: README requirements line, Operating System :: POSIX :: Linux classifier, acc-crit criterion; `README.md`
+  - 2026-07-25 reported: found by architect adversarial review round 3; the README is the PyPI long description and is immutable per version, so this had to land before first publish
+  - 2026-07-25 fixed: README requirements line, POSIX :: Linux classifier, acc-crit 'Known limitation: Linux only' (v1.0.24)
+- [x] `DEF-50` **copier answers would regenerate the doubled author name** - `.copier-answers.yml` still held author_name with the email embedded, an empty repository and the pre-rewrite description, so a copier update - the documented way to pull template updates - would have reintroduced DEF-46 and DEF-15; cause: DEF-46 was fixed in package.json only; fix: all three answers set to the real values; `.copier-answers.yml`
+  - 2026-07-25 reported: found by architect adversarial review round 3
+  - 2026-07-25 fixed: author_name, project_short_description and repository set to the real values (v1.0.24)

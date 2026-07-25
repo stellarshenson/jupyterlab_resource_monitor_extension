@@ -1,24 +1,15 @@
 import {
-  cpuSegments,
+  cpuFraction,
   cpuTooltip,
   formatBytes,
-  ISegment,
+  formatCpuText,
+  formatMemoryText,
   MemLevel,
   memoryLevel,
-  memorySegments,
   memoryTooltip
 } from '../format';
 
-// The rendered string, as the status bar item's textContent reads it.
-const text = (segments: ISegment[]): string =>
-  segments.map(s => s.text).join('');
-
-// The layout the renderer reserves: literal runs by their text, numeric runs
-// by their column count. Equal layouts render at equal width.
-const layout = (segments: ISegment[]): (string | number)[] =>
-  segments.map(s => s.columns ?? s.text);
-
-describe('jupyterlab_resource_monitor_extension', () => {
+describe('format', () => {
   describe('formatBytes', () => {
     it('formats terabytes with one decimal', () => {
       expect(formatBytes(2 * 1024 ** 4)).toEqual('2.0 TB');
@@ -45,65 +36,81 @@ describe('jupyterlab_resource_monitor_extension', () => {
     });
   });
 
-  describe('memorySegments', () => {
+  describe('formatMemoryText', () => {
     const TB = 1024 ** 4;
     const GB = 1024 ** 3;
     const MB = 1024 ** 2;
 
     it('expresses used in TB on a terabyte-class node', () => {
-      expect(text(memorySegments(0.5 * TB, 1.5 * TB, 33))).toEqual(
+      expect(formatMemoryText(0.5 * TB, 1.5 * TB, 33)).toEqual(
         'Mem: 0.5 / 1.5 TB (33%)'
       );
     });
 
     it('shows used in the total unit with the percentage', () => {
-      expect(text(memorySegments(3.4 * GB, 15.6 * GB, 22))).toEqual(
+      expect(formatMemoryText(3.4 * GB, 15.6 * GB, 22)).toEqual(
         'Mem: 3.4 / 15.6 GB (22%)'
       );
     });
 
     it('expresses a sub-unit used value in the total unit', () => {
-      expect(text(memorySegments(350 * MB, 16 * GB, 2))).toEqual(
+      expect(formatMemoryText(350 * MB, 16 * GB, 2)).toEqual(
         'Mem: 0.3 / 16.0 GB (2%)'
       );
     });
 
     it('rounds the percentage', () => {
-      expect(text(memorySegments(14.2 * GB, 15.6 * GB, 91.2))).toEqual(
+      expect(formatMemoryText(14.2 * GB, 15.6 * GB, 91.2)).toEqual(
         'Mem: 14.2 / 15.6 GB (91%)'
       );
     });
 
-    it('reserves the same layout for a fixed total', () => {
-      const total = 512 * GB;
-      expect(layout(memorySegments(3.4 * GB, total, 1))).toEqual(
-        layout(memorySegments(511.9 * GB, total, 100))
+    it('omits the percentage when it is null', () => {
+      expect(formatMemoryText(3.4 * GB, 15.6 * GB, null)).toEqual(
+        'Mem: 3.4 / 15.6 GB'
       );
     });
 
-    it('never overflows a reserved column', () => {
-      const total = 512 * GB;
-      for (const percent of [0, 50, 100]) {
-        for (const segment of memorySegments(
-          total * (percent / 100),
-          total,
-          percent
-        )) {
-          if (segment.columns !== undefined) {
-            expect(segment.text.length).toBeLessThanOrEqual(segment.columns);
-          }
-        }
-      }
+    it('renders flush, so the width tracks the value', () => {
+      const low = formatMemoryText(3.4 * GB, 512 * GB, 1);
+      const high = formatMemoryText(511.9 * GB, 512 * GB, 100);
+      expect(low).toEqual('Mem: 3.4 / 512.0 GB (1%)');
+      expect(high).toEqual('Mem: 511.9 / 512.0 GB (100%)');
+      expect(low.length).not.toEqual(high.length);
     });
   });
 
-  describe('cpuSegments', () => {
+  describe('formatCpuText', () => {
     it('rounds to a whole percent', () => {
-      expect(text(cpuSegments(7.4))).toEqual('CPU: 7%');
+      expect(formatCpuText(7.4)).toEqual('CPU: 7%');
     });
 
-    it('reserves the same layout across magnitudes', () => {
-      expect(layout(cpuSegments(5))).toEqual(layout(cpuSegments(100)));
+    it('renders flush across magnitudes', () => {
+      expect(formatCpuText(5)).toEqual('CPU: 5%');
+      expect(formatCpuText(100)).toEqual('CPU: 100%');
+    });
+
+    it('expands to the top-style sum in aggregate mode', () => {
+      // 45% of an 8-core box is 360% when each core counts its own 100%
+      expect(formatCpuText(45, 'aggregate', 8)).toEqual('CPU: 360%');
+      expect(formatCpuText(100, 'aggregate', 8)).toEqual('CPU: 800%');
+    });
+
+    it('leaves the reading normalised in normalised mode', () => {
+      expect(formatCpuText(45, 'normalised', 8)).toEqual('CPU: 45%');
+    });
+  });
+
+  describe('cpuFraction', () => {
+    it('is the share of total capacity, full only when all cores are busy', () => {
+      expect(cpuFraction(0)).toEqual(0);
+      expect(cpuFraction(50)).toEqual(0.5);
+      expect(cpuFraction(100)).toEqual(1);
+    });
+
+    it('clamps out-of-range readings', () => {
+      expect(cpuFraction(-5)).toEqual(0);
+      expect(cpuFraction(140)).toEqual(1);
     });
   });
 

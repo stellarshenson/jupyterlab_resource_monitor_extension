@@ -1,0 +1,40 @@
+{
+  "title": "Resource Monitor",
+  "description": "Settings for the resource monitor status bar items and kernel usage panel.",
+  "jupyter.lab.setting-icon-label": "Resource Monitor",
+  "type": "object",
+  "properties": {
+    "showMemory": {
+      "type": "boolean",
+      "title": "Show memory",
+      "description": "Show the memory usage item in the status bar.",
+      "default": true
+    },
+    "showCpu": {
+      "type": "boolean",
+      "title": "Show CPU",
+      "description": "Show the CPU usage item in the status bar.",
+      "default": true
+    },
+    "showMemoryPercent": {
+      "type": "boolean",
+      "title": "Show memory percentage",
+      "description": "Show the used-of-limit percentage in the memory item.",
+      "default": false
+    },
+    "cpuMode": {
+      "type": "string",
+      "title": "CPU display mode",
+      "description": "How the CPU reading is shown. 'normalised' is the share of all cores together (0-100%); 'aggregate' sums each core's own 100%, as top reports it; 'bar' shows a filled bar instead of a number, full when every core is saturated.",
+      "enum": ["normalised", "aggregate", "bar"],
+      "default": "normalised"
+    },
+    "showKernelUsage": {
+      "type": "boolean",
+      "title": "Show kernel usage panel",
+      "description": "Show the sidebar panel with usage for the current notebook's kernel. The kernel is measured only while the panel is open.",
+      "default": true
+    }
+  },
+  "additionalProperties": false
+}

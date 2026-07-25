@@ -2541,7 +2541,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/notebook@npm:^4.6.2":
+"@jupyterlab/notebook@npm:^4.0.0, @jupyterlab/notebook@npm:^4.6.2":
   version: 4.6.2
   resolution: "@jupyterlab/notebook@npm:4.6.2"
   dependencies:
@@ -2665,7 +2665,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/settingregistry@npm:^4.6.2":
+"@jupyterlab/settingregistry@npm:^4.0.0, @jupyterlab/settingregistry@npm:^4.6.2":
   version: 4.6.2
   resolution: "@jupyterlab/settingregistry@npm:4.6.2"
   dependencies:
@@ -2772,7 +2772,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/translation@npm:^4.6.2":
+"@jupyterlab/translation@npm:^4.0.0, @jupyterlab/translation@npm:^4.6.2":
   version: 4.6.2
   resolution: "@jupyterlab/translation@npm:4.6.2"
   dependencies:
@@ -2785,7 +2785,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/ui-components@npm:^4.6.2":
+"@jupyterlab/ui-components@npm:^4.0.0, @jupyterlab/ui-components@npm:^4.6.2":
   version: 4.6.2
   resolution: "@jupyterlab/ui-components@npm:4.6.2"
   dependencies:
@@ -7521,9 +7521,13 @@ __metadata:
     "@jupyter/eslint-plugin": ^0.0.5
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/coreutils": ^6.0.0
+    "@jupyterlab/notebook": ^4.0.0
     "@jupyterlab/services": ^7.0.0
+    "@jupyterlab/settingregistry": ^4.0.0
     "@jupyterlab/statusbar": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
+    "@jupyterlab/translation": ^4.0.0
+    "@jupyterlab/ui-components": ^4.0.0
     "@lumino/polling": ^2.0.0
     "@lumino/widgets": ^2.0.0
     "@types/jest": ^29.2.0

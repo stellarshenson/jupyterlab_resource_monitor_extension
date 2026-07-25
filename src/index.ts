@@ -5,21 +5,39 @@ import {
 
 import { IStatusBar } from '@jupyterlab/statusbar';
 
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
+
+import { INotebookTracker } from '@jupyterlab/notebook';
+
+import { ITranslator, nullTranslator } from '@jupyterlab/translation';
+
 import { Poll } from '@lumino/polling';
 
-import { Widget } from '@lumino/widgets';
-
 import {
-  cpuSegments,
+  CpuMode,
+  cpuFraction,
   cpuTooltip,
-  ISegment,
+  formatCpuText,
+  formatMemoryText,
   MemLevel,
   memoryLevel,
-  memorySegments,
   memoryTooltip
 } from './format';
 
+import { ResourceItem } from './item';
+
+import { KernelUsagePanel } from './kernelpanel';
+
 import { requestAPI } from './request';
+
+import {
+  initialPollState,
+  MAX_POLL_INTERVAL,
+  POLL_INTERVAL,
+  resolveDisplaySettings,
+  shouldHideOnFailure,
+  trackSnapshot
+} from './state';
 
 /**
  * Snapshot shape returned by the server extension's metrics endpoint.
@@ -31,88 +49,25 @@ interface IMetricsSnapshot {
 }
 
 /**
- * Poll interval for the metrics endpoint in milliseconds.
+ * The settings-carrying plugin id. Both plugins read this one schema, so it is
+ * named once rather than reached for through the other plugin object.
  */
-const POLL_INTERVAL = 5000;
-
-/**
- * Ceiling the backoff may raise the interval to while the endpoint is failing,
- * so a dead server is retried once a minute rather than never.
- */
-const MAX_POLL_INTERVAL = 60000;
-
-/**
- * Consecutive failed polls tolerated before the items are hidden, so a single
- * transient hiccup (laptop wake, proxy blip) does not read as a crash.
- */
-const HIDE_AFTER_FAILURES = 3;
-
-/**
- * Consecutive polls with an unchanged timestamp before the snapshot is treated
- * as stale - the sampler thread has stopped producing samples.
- */
-const STALE_AFTER_POLLS = 3;
-
-/**
- * A status bar item that renders its changing numbers in fixed-width columns
- * and carries a memory-pressure level.
- */
-class ResourceItem extends Widget {
-  constructor(kind: string) {
-    super();
-    this.addClass('jp-ResourceMonitor-item');
-    this.addClass(`jp-ResourceMonitor-${kind}`);
-    // role="img" makes the aria-label the element's accessible name; without a
-    // role, screen readers may ignore aria-label on a generic div.
-    this.node.setAttribute('role', 'img');
-    // The segments live inside one inline wrapper: as direct children of the
-    // flex item, the whitespace-only runs between them would not be rendered.
-    this._content = document.createElement('span');
-    this.node.appendChild(this._content);
-    this.hide();
-  }
-
-  set segments(values: ISegment[]) {
-    this._content.textContent = '';
-    for (const segment of values) {
-      if (segment.columns === undefined) {
-        this._content.appendChild(document.createTextNode(segment.text));
-        continue;
-      }
-      const column = document.createElement('span');
-      column.className = 'jp-ResourceMonitor-column';
-      column.style.width = `${segment.columns}ch`;
-      column.textContent = segment.text;
-      this._content.appendChild(column);
-    }
-  }
-
-  set tooltip(value: string) {
-    // title serves mouse hover; with role="img" the aria-label is the element's
-    // accessible name, so screen-reader and touch-explore users reach the same
-    // detail (the item is not in the tab order, so keyboard focus does not).
-    this.node.title = value;
-    this.node.setAttribute('aria-label', value);
-  }
-
-  set level(value: MemLevel) {
-    this.toggleClass('jp-ResourceMonitor-warn', value === 'warn');
-    this.toggleClass('jp-ResourceMonitor-danger', value === 'danger');
-  }
-
-  private _content: HTMLElement;
-}
+const PLUGIN_ID = 'jupyterlab_resource_monitor_extension:plugin';
 
 /**
  * Initialization data for the jupyterlab_resource_monitor_extension extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'jupyterlab_resource_monitor_extension:plugin',
+  id: PLUGIN_ID,
   description:
-    'Jupyterlab extension to replace jupyter-resource-usage with less intrusive and better implementation for resource usage',
+    'JupyterLab extension replacing jupyter-resource-usage with a less intrusive, better implementation of resource usage monitoring',
   autoStart: true,
-  optional: [IStatusBar],
-  activate: (app: JupyterFrontEnd, statusBar: IStatusBar | null) => {
+  optional: [IStatusBar, ISettingRegistry],
+  activate: (
+    app: JupyterFrontEnd,
+    statusBar: IStatusBar | null,
+    settingRegistry: ISettingRegistry | null
+  ) => {
     console.log(
       'JupyterLab extension jupyterlab_resource_monitor_extension is activated!'
     );
@@ -127,48 +82,126 @@ const plugin: JupyterFrontEndPlugin<void> = {
     let memLevel: MemLevel = 'normal';
     let failures = 0;
     let warned = false;
-    let lastTs = -1;
-    let staleCount = 0;
+    let pollState = initialPollState();
+    // Latest good sample, kept so a settings change can re-render without
+    // waiting for the next poll; cleared whenever the items are hidden so a
+    // toggle never re-shows stale data.
+    let lastSnap: IMetricsSnapshot | null = null;
 
+    // Display settings. The items default on so they still show if the setting
+    // registry is absent or its load fails; the percentage defaults off.
+    let showMemory = true;
+    let showCpu = true;
+    let showMemoryPercent = false;
+    let cpuMode: CpuMode = 'normalised';
+
+    // The status bar owns widget visibility - it re-decides it from isActive()
+    // at registration and on every layout change - so the items expose their
+    // own `active` flag and a signal to re-ask, rather than calling
+    // show()/hide(), which the next tab open would silently undo.
     statusBar.registerStatusItem(
       'jupyterlab_resource_monitor_extension:memory',
-      { item: memoryItem, align: 'left', rank: 2 }
+      {
+        item: memoryItem,
+        align: 'left',
+        rank: 2,
+        isActive: () => memoryItem.active,
+        activeStateChanged: memoryItem.activeChanged
+      }
     );
     statusBar.registerStatusItem('jupyterlab_resource_monitor_extension:cpu', {
       item: cpuItem,
       align: 'left',
-      rank: 3
+      rank: 3,
+      isActive: () => cpuItem.active,
+      activeStateChanged: cpuItem.activeChanged
     });
 
     const hideItems = (): void => {
-      memoryItem.hide();
-      cpuItem.hide();
+      lastSnap = null;
+      memoryItem.active = false;
+      cpuItem.active = false;
     };
 
     const render = (snap: IMetricsSnapshot): void => {
+      lastSnap = snap;
       const { used_bytes: used, total_bytes: total } = snap.mem;
       const frac = total > 0 ? used / total : 0;
       memLevel = memoryLevel(frac, memLevel);
       const percent = frac * 100;
-      // The percentage is always shown - it is the glanceable "how close to the
-      // ceiling" signal and its constant presence stops the row reflowing when
-      // the level changes.
-      memoryItem.segments = memorySegments(used, total, percent);
-      memoryItem.level = memLevel;
-      memoryItem.tooltip = memoryTooltip(
-        used,
-        total,
-        percent,
-        snap.mem.limit_source,
-        memLevel
-      );
 
-      cpuItem.segments = cpuSegments(snap.cpu.percent);
-      cpuItem.tooltip = cpuTooltip(snap.cpu.percent, snap.cpu.cpu_count);
+      if (showMemory) {
+        memoryItem.text = formatMemoryText(
+          used,
+          total,
+          showMemoryPercent ? percent : null
+        );
+        memoryItem.level = memLevel;
+        memoryItem.tooltip = memoryTooltip(
+          used,
+          total,
+          percent,
+          snap.mem.limit_source,
+          memLevel
+        );
+        memoryItem.active = true;
+      } else {
+        memoryItem.active = false;
+      }
 
-      memoryItem.show();
-      cpuItem.show();
+      if (showCpu) {
+        if (cpuMode === 'bar') {
+          // no trailing space: the item is a flex container, which trims it -
+          // the gap before the bar comes from the bar's own margin
+          cpuItem.setBar('CPU:', cpuFraction(snap.cpu.percent));
+        } else {
+          cpuItem.text = formatCpuText(
+            snap.cpu.percent,
+            cpuMode,
+            snap.cpu.cpu_count
+          );
+        }
+        cpuItem.tooltip = cpuTooltip(snap.cpu.percent, snap.cpu.cpu_count);
+        cpuItem.active = true;
+      } else {
+        cpuItem.active = false;
+      }
     };
+
+    const applySettings = (settings: ISettingRegistry.ISettings): void => {
+      const resolved = resolveDisplaySettings(
+        key => settings.get(key).composite
+      );
+      showMemory = resolved.showMemory;
+      showCpu = resolved.showCpu;
+      showMemoryPercent = resolved.showMemoryPercent;
+      if (resolved.cpuMode !== cpuMode) {
+        // leaving bar mode must clear the bar DOM, and entering it must rebuild
+        // it, so reset the item to plain text and let render rebuild
+        cpuMode = resolved.cpuMode;
+        cpuItem.text = '';
+      }
+      // Re-render from the last good sample so a toggle takes effect at once,
+      // rather than on the next poll up to POLL_INTERVAL later.
+      if (lastSnap) {
+        render(lastSnap);
+      }
+    };
+
+    if (settingRegistry) {
+      settingRegistry
+        .load(PLUGIN_ID)
+        .then(settings => {
+          applySettings(settings);
+          settings.changed.connect(applySettings);
+        })
+        .catch(reason => {
+          console.warn(
+            'jupyterlab_resource_monitor_extension: could not load settings, showing all items',
+            reason
+          );
+        });
+    }
 
     const update = async (): Promise<void> => {
       let snap: IMetricsSnapshot;
@@ -178,7 +211,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           app.serviceManager.serverSettings
         );
       } catch (reason) {
-        if (++failures >= HIDE_AFTER_FAILURES) {
+        if (shouldHideOnFailure(++failures)) {
           hideItems();
         }
         if (!warned) {
@@ -196,13 +229,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
       // The sampler stamps a fresh ts every sample; an unchanged ts across
       // several polls means it has stopped - do not present frozen numbers as
       // live. Missing data (total <= 0, e.g. no /proc) is likewise not shown.
-      if (snap.ts === lastTs) {
-        staleCount += 1;
-      } else {
-        staleCount = 0;
-        lastTs = snap.ts;
-      }
-      if (staleCount >= STALE_AFTER_POLLS || snap.mem.total_bytes <= 0) {
+      const next = trackSnapshot(snap.ts, snap.mem.total_bytes, pollState);
+      pollState = { lastTs: next.lastTs, staleCount: next.staleCount };
+      if (next.hide) {
         hideItems();
         return;
       }
@@ -210,7 +239,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       render(snap);
     };
 
-    void new Poll({
+    const poll = new Poll({
       auto: true,
       factory: update,
       frequency: {
@@ -221,7 +250,88 @@ const plugin: JupyterFrontEndPlugin<void> = {
       standby: 'when-hidden',
       name: 'jupyterlab_resource_monitor_extension:metrics'
     });
+    // The poll outlives activation, so hold the handle rather than discarding
+    // it. The status bar disposes both items through the disposables it
+    // returned from registerStatusItem, so the only thing left to tear down
+    // here is the poll that feeds them.
+    memoryItem.disposed.connect(() => {
+      poll.dispose();
+    });
   }
 };
 
-export default plugin;
+/**
+ * Kernel usage sidebar panel, showing the current notebook's kernel.
+ *
+ * Separate from the status bar plugin because it depends on the notebook
+ * tracker: without notebooks the status bar still works, and this plugin
+ * simply never activates.
+ */
+const kernelUsagePlugin: JupyterFrontEndPlugin<void> = {
+  id: 'jupyterlab_resource_monitor_extension:kernel-usage',
+  description: "Sidebar panel showing the current notebook kernel's usage",
+  autoStart: true,
+  requires: [INotebookTracker],
+  optional: [ISettingRegistry, ITranslator],
+  activate: (
+    app: JupyterFrontEnd,
+    tracker: INotebookTracker,
+    settingRegistry: ISettingRegistry | null,
+    translator: ITranslator | null
+  ) => {
+    const trans = (translator ?? nullTranslator).load(
+      'jupyterlab_resource_monitor_extension'
+    );
+    let panel: KernelUsagePanel | null = null;
+
+    const show = (): void => {
+      if (panel) {
+        return;
+      }
+      panel = new KernelUsagePanel({
+        tracker,
+        serverSettings: app.serviceManager.serverSettings,
+        trans
+      });
+      // right sidebar, matching where jupyter-resource-usage put its panel
+      app.shell.add(panel, 'right', { rank: 200 });
+    };
+
+    const hide = (): void => {
+      panel?.dispose();
+      panel = null;
+    };
+
+    const apply = (settings: ISettingRegistry.ISettings): void => {
+      if (
+        resolveDisplaySettings(key => settings.get(key).composite)
+          .showKernelUsage
+      ) {
+        show();
+      } else {
+        hide();
+      }
+    };
+
+    if (!settingRegistry) {
+      show();
+      return;
+    }
+
+    settingRegistry
+      .load(PLUGIN_ID)
+      .then(settings => {
+        apply(settings);
+        settings.changed.connect(apply);
+      })
+      .catch(reason => {
+        console.warn(
+          'jupyterlab_resource_monitor_extension: could not load settings, showing the kernel panel',
+          reason
+        );
+        show();
+      });
+  }
+};
+
+export default [plugin, kernelUsagePlugin];

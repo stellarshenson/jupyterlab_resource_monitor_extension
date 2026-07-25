@@ -12,23 +12,74 @@
   color: var(--jp-ui-font-color1);
   white-space: nowrap;
 
-  /* Fixed-width digits, so every digit has the same advance as `1ch` - the
-     unit the numeric columns below reserve their width in. */
+  /* Fixed-width digits, so a value keeps its width as digits change (e.g. 11 ->
+     99) even though the text is otherwise flush and its overall width tracks
+     the value. */
   font-variant-numeric: tabular-nums;
 
   /* Ease the tint in/out as a calm wash rather than a hard cut. */
   transition: background-color 240ms ease;
 }
 
-/* A numeric run whose value changes gets a box sized in `ch` (the advance of a
-   digit in whatever font the browser resolves) and right-aligns inside it, so
-   the width is reserved by the CSS box rather than by a padding glyph whose
-   metrics vary across the client fonts a JupyterHub deployment sees. Width is
-   set inline, in format.ts, because the column count depends on the host's
-   memory total. */
-.jp-ResourceMonitor-column {
+/* The CPU bar: an outlined column filled from the bottom, full only when every
+   core is saturated. Outline and fill both take the surrounding text colour so
+   it reads as typography rather than as a coloured indicator. */
+.jp-ResourceMonitor-bar {
+  position: relative;
   display: inline-block;
-  text-align: right;
+
+  /* The item is a flex container, so a trailing space in the label would be
+     trimmed - the gap has to be a margin. */
+  margin-left: 5px;
+
+  /* Shorter than the text it sits beside, so it reads as a gauge rather than
+     as a character; border-box keeps the outline inside these bounds. */
+  width: 6px;
+  height: 9px;
+  box-sizing: border-box;
+  border: 1px solid currentcolor;
+}
+
+.jp-ResourceMonitor-barFill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: currentcolor;
+}
+
+/* Kernel usage sidebar panel. */
+.jp-ResourceMonitor-panel {
+  padding: 8px 12px;
+  overflow: auto;
+  font-size: var(--jp-ui-font-size1);
+  color: var(--jp-ui-font-color1);
+  background: var(--jp-layout-color1);
+}
+
+.jp-ResourceMonitor-panelHeading {
+  margin: 0 0 8px;
+  font-size: var(--jp-ui-font-size2);
+  font-weight: 600;
+}
+
+.jp-ResourceMonitor-panelRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+.jp-ResourceMonitor-panelLabel {
+  color: var(--jp-ui-font-color2);
+}
+
+.jp-ResourceMonitor-panelValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.jp-ResourceMonitor-panelEmpty {
+  margin: 0;
+  color: var(--jp-ui-font-color2);
 }
 
 /* Honour a reduced-motion preference - drop the tint fade entirely. */

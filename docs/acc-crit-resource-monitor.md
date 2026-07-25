@@ -63,7 +63,7 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: memoryLevel hysteresis + colour-only CSS, 4 jest cases (v0.1.2)
   - log: 2026-07-24 revised: switched text-colour to background tint after round-2 ux found the warn foreground failed AA contrast; percentage now always shown, memory min-width added (v0.1.3)
-- [x] **No visual jitter** - each changing numeric run (memory used, expressed in the total's unit, and both percentages) renders in a box sized in `ch` and right-aligned, so the width is reserved by the CSS box rather than any glyph metric; neither item shifts its neighbours as digits, units or the level change
+- [x] **Flush status text** - memory and CPU values render flush with single spacing and no reserved-width padding, so the rendered width tracks the value; `tabular-nums` keeps digits equal-width within a given digit count
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: tabular-nums + cpu min-width (v0.1.2)
   - log: 2026-07-24 extended: memory min-width added and percentage always shown so no threshold-crossing reflow (v0.1.3)
@@ -71,6 +71,7 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 extended: browser measurement found the CPU item still jittered 57->69px (bounded but unpadded); padded its percent too, U+2007 verified digit-width, cpuConstant true (v0.1.5)
   - log: 2026-07-24 revised: round-4 ux found the constant width rested on the U+2007 glyph metric, which varies across client fonts; replaced padding with ch-sized right-aligned columns, browser-measured constant at 167.31px / 69.47px (v0.1.7)
   - log: 2026-07-24 guarded: round-6 ux flagged the invariant had no browser-level guard after five regressions; added Galata test asserting equal boundingBox width and no column overflow across value extremes, negative control confirms it diverges 177->209px without the ch box (v0.1.8)
+  - log: 2026-07-25 reversed: constant-width reservation removed at user request - flush text preferred over reserved padding; the ch-column CSS/renderer and the Galata width guard were dropped, jest now asserts the flush strings and that width tracks the value (v1.0.13)
 - [x] **Denominator tooltips** - tooltip shows `CPU: n% of N CPUs` and memory used/total/percent with the ceiling's provenance (container limit vs host RAM) and severity word, via `title` (mouse) and `aria-label` on a `role="img"` node (screen reader and touch)
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: title tooltips with cpu_count and mem percent (v0.1.2)
@@ -78,6 +79,7 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 corrected: role="img" so aria-label is honoured (screen reader/touch, not keyboard tab-focus); tooltip now carries limit provenance and severity word (v0.1.4)
   - log: 2026-07-24 extended: round-8 ux found cpu_count (a quota/period ratio) reached the tooltip unrounded; display now clamps to 2dp, server value stays exact for the percent maths (v0.1.10)
   - log: 2026-07-24 extended: round-9 architect noted tooltip assembly sat in index.ts, which jest cannot reach, so the DEF-30 fix shipped untested; moved to memoryTooltip/cpuTooltip in format.ts with 5 jest cases (limit labelling, severity words, pluralisation, quota-ratio rounding), format.ts now 100% statements (v0.1.11)
+  - log: 2026-07-25 invariant confirmed: the tooltip is always complete regardless of display settings - it keeps the memory percentage when `showMemoryPercent` is off and the CPU number in `bar` mode, so no display option can remove a value from the UI entirely (v1.0.18)
 - [x] **Edge: transient failure** - a single failed poll keeps the last values; items hide only after 3 consecutive failures, so a laptop-wake or proxy blip does not read as a crash
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: HIDE_AFTER_FAILURES=3 counter (v0.1.2)
@@ -87,9 +89,11 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 - [x] **Edge: zero-state** - when `total_bytes <= 0` (no /proc, hardened host) both items hide instead of rendering `Mem: 0 / 0 MB` as live data
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: total<=0 hides items (v0.1.2)
-- [x] **Percentage always shown** - the used-of-limit percentage is shown in every state (not only warn/danger), as the glanceable ceiling signal and to keep the item width constant
+- [x] **Memory percentage (default off, settings-gated)** - the used-of-limit percentage is hidden inline by default and shown in every state (not only warn/danger) when `showMemoryPercent` is on; the tooltip always carries it, so the ceiling signal is never lost
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: always passed to formatMemoryText, jest covers suffix (v0.1.3)
+  - log: 2026-07-25 extended: now gated by the showMemoryPercent setting (default true); formatMemoryText omits the suffix when passed null, jest covers both (v1.0.13)
+  - log: 2026-07-25 default flipped to off at user request; the read is now `=== true` so an unset value stays off, where the other toggles use `!== false` to stay on; verified with no user overrides the item renders `Mem: 11.1 / 503.2 GB` while the tooltip keeps (2%) (v1.0.18)
 - [x] **Byte units to TB** - `formatBytes` scales through MB/GB/TB so large multi-user nodes read `1.0 TB` not `1024.0 GB`
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: TB branch, formatBytes jest case (v0.1.3)
@@ -102,14 +106,74 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: 2 Galata tests green: status items visible with live text + activation (v0.1.2)
   - log: 2026-07-24 extended: third Galata test pins the rendered width invariant in a real browser (v0.1.8)
+  - log: 2026-07-25 reduced: removed the width-invariant Galata test with the width reservation it guarded; 2 Galata tests remain (v1.0.13)
 - [x] **CPU carries no pressure state** - the warn/danger tint applies to the memory item only; sustained 100% CPU is normal during legitimate compute, so tinting it would signal alarm on every training run - the asymmetry is deliberate, not an oversight
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: documented after round-7 ux endorsed the design but flagged it as undocumented (v0.1.9)
 - [x] **CI green** - every gate in `build.yml` passes: `lint:check`, `jlpm run test`, `pytest --cov`, both extension-list greps, `jupyterlab.browser_check`, wheel build with no duplicate paths, isolated-wheel install, Galata; `check_links` ignores registry badge URLs that 403 or 404 pre-release
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: all gates run locally in CI-equivalent isolated venvs - pytest 20 at 96% cov, jest 17, Galata 3, browser_check exit 0 (clean env, settling DEF-2 as environmental), wheel clean, isolated install greps 0, lint 0; DEF-29 ignore_links added (v0.1.9)
+- [x] **Setting: show memory** - `showMemory` (default true) toggles the memory status bar item; when false the item is hidden and no memory text is rendered
+  - log: 2026-07-25 added and closed: schema `showMemory`, gated in `render`, verified live via settings REST + reload (v1.0.13)
+- [x] **Setting: show CPU** - `showCpu` (default true) toggles the CPU status bar item; when false the item is hidden
+  - log: 2026-07-25 added and closed: schema `showCpu`, gated in `render`, verified live - CPU item hidden after toggle (v1.0.13)
+- [x] **Setting: show memory percentage** - `showMemoryPercent` (default false) toggles the `(NN%)` suffix on the memory item without affecting the used/total reading
+  - log: 2026-07-25 added and closed: schema `showMemoryPercent`, passed as null to `formatMemoryText` when off, verified live - suffix dropped after toggle (v1.0.13)
+  - log: 2026-07-25 default flipped to false (v1.0.18)
+- [x] **Settings applied live and on load** - a settings change re-renders from the last good sample at once (no wait for the next poll); on load the persisted values are read via `ISettingRegistry`; a failed settings load falls back to the schema defaults (items on, percentage off)
+  - log: 2026-07-25 added and closed: `settingRegistry.load` + `settings.changed`, re-render from `lastSnap`, catch defaults to all-on (v1.0.13)
+  - log: 2026-07-25 reworded: the fallback is items-on but percentage-off, matching the new schema defaults (v1.0.18)
+
+- [x] **Kernel usage panel** - right-sidebar panel with the upstream tachometer icon shows memory and CPU for the kernel attached to the notebook currently in view, and only that kernel
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: KernelUsagePanel with the upstream tachometer icon, right sidebar rank 200, tracks INotebookTracker.currentWidget; live-verified python3 / 683 MB / 101% for the open notebook's kernel (v1.0.16)
+- [x] **Panel measures only while open** - the panel polls only while visible and each poll renews a server-side lease; a closed or collapsed panel lets the lease lapse so no process tree is walked at all
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: Poll standby when not visible + 15s server lease; live-verified after collapsing the panel the first poll returned kernel null / ts 0, proving the sampler had stopped walking, then resumed within 3s (v1.0.16)
+  - log: 2026-07-25 hardened: watches are per kernel, not a single slot - two notebooks open in two tabs each keep their own reading instead of evicting each other (DEF-33); leases expire independently (v1.0.20)
+- [x] **Setting: show kernel panel** - `showKernelUsage` (default true) adds or removes the panel, applied live
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: showKernelUsage adds/removes the panel via shell.add / dispose (v1.0.16)
+- [x] **Setting: CPU display mode** - `cpuMode` selects `normalised` (default, share of all cores), `aggregate` (top-style sum, N x 100%) or `bar` (outlined vertical bar in the item's own text colour, full when every core is saturated)
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: cpuMode with 4 jest cases; live-verified bar renders 9x14 outlined, fill 10% at CPU 10% of 64 cores, outline and fill both rgb(165,165,165) matching the item font colour (v1.0.16)
+  - log: 2026-07-25 refined: the bar sat flush against the label because the item is a flex container, which trims a trailing space in the label; gap moved to a 5px margin on the bar and the bar shortened to 6x9 with border-box, browser-measured gap 5px against 12px text, vertically centred, no overlap (v1.0.17)
+- [x] **Kernel panel off-loop** - the `/proc` tree walk runs on the kernel sampler thread; the handler only resolves a PID from the in-memory kernel manager and returns the cache, and the walk is bounded to 2000 file reads, which is what the cost actually tracks - a heavily threaded kernel spends most of it enumerating `task/*/children`
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: KernelSampler thread owns the walk, handler resolves the PID in-memory and reads cache; walk capped at 500 procs, test_walk_is_bounded (v1.0.16)
+  - log: 2026-07-25 revised: budget counts file reads (_MAX_READS 2000), not processes (DEF-44); thread enumeration moved from glob to os.scandir so the budget stops the enumeration itself - 501 dir entries touched before, 49 after (DEF-45) (v1.0.23)
+  - log: 2026-07-25 clarified: on hitting the budget the walk returns a partial sum with no flag, so a huge tree under-reports rather than over-reports; sampler cadence lowered 2.0s -> 5.0s to match the panel poll, which was discarding 1.5 of every 2.5 walks (v1.0.24)
+- [x] **Edge: kernel panel states** - no notebook or no kernel shows `No kernel`; a freshly watched kernel, an all-zero sample (dead PID, no `/proc`) and a snapshot frozen for 3 polls all show `Measuring...`; `Unavailable` appears only after 3 consecutive failed polls, not the first; and a switched notebook never shows the previous kernel's numbers
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: 10 pytest cases incl. lease expiry, kernel switch clearing the stale sample, missing /proc entry; endpoint tests for missing and unknown kernel_id (v1.0.16)
+  - log: 2026-07-25 hardened: the panel had reimplemented three already-closed status bar defects (first-strike unavailable, no staleness guard, no zero guard); routed through the shared kernelPanelState in state.ts, 6 jest cases (v1.0.22)
+
+- [x] **Platform-safe import** - importing the package never fails on a platform without `os.sysconf`; the kernel sampler falls back to the standard Linux clock-tick and page-size constants and rejects the -1 sysconf returns when a value is indeterminate
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: _sysconf helper catching AttributeError/ValueError/OSError, non-positive values rejected (DEF-35) (v1.0.22)
+
+- [x] **Status bar owns item visibility** - items are registered with `isActive` and `activeStateChanged` and never call `show()`/`hide()` themselves, so the framework's per-layout refresh cannot resurface a hidden item and the settings, stale, zero-state and endpoint-missing guards all hold across tab and sidebar changes
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: ResourceItem.active + activeChanged wired into registerStatusItem (DEF-42); 3 jest cases on the signal contract, Galata still green (v1.0.23)
+- [x] **Known limitation: partial i18n** - the kernel panel is translated via `ITranslator`; the status bar's compact labels and tooltips are not - the labels are symbols and units, but the tooltips are prose and double as the accessible name, so this is a recorded limitation rather than a finished decision
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: recorded as an accepted limitation after the architect flagged the split (v1.0.23)
+- [x] **Known limitation: Linux only** - the samplers read cgroup v2 and `/proc` exclusively, so on macOS and Windows every read fails and the extension degrades to nothing shown - the status bar items stay hidden and the kernel panel holds `Measuring...`, with no error surfaced because the requests themselves succeed; declared in the README requirements and in the `Operating System :: POSIX :: Linux` classifier rather than fixed
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: declared in README requirements and the POSIX :: Linux classifier before first publish, after the architect flagged that the README is the immutable PyPI long description (v1.0.24)
 
 ## API
 
 - `GET /jupyterlab-resource-monitor-extension/metrics` -> `{mem: {used_bytes, total_bytes, limit_source}, cpu: {percent, cpu_count}, ts}`; `limit_source` is `"cgroup"` (container limit) or `"host"` (physical RAM); 200 always once loaded, values from latest cached sample
 - Server samples every 5s (background thread) and the frontend polls every 5s (independent cadences), so displayed values can be up to ~10s stale in the worst case
+- `GET /jupyterlab-resource-monitor-extension/kernels?kernel_id=<id>` -> `{kernel: {id, name, memory_bytes, cpu_percent} | null, ts}`; each request registers that kernel and renews its 15s lease, so sampling stops when polling does; `kernel` is `null` for a missing or unknown id, a kernel with no local process, or before the first sample lands
+- Kernel sampling is 5s on its own thread, matching the panel poll; `cpu_percent` is a share of one core, so a multi-threaded kernel can exceed 100%
+
+## Settings
+
+- Plugin id `jupyterlab_resource_monitor_extension:plugin`, schema `schema/plugin.json`
+- `showMemory` (boolean, default true) - show the memory item
+- `showCpu` (boolean, default true) - show the CPU item
+- `showMemoryPercent` (boolean, default false) - show the `(NN%)` suffix on the memory item
+- `cpuMode` (`normalised` default, `aggregate`, `bar`) - how the CPU reading is presented
+- `showKernelUsage` (boolean, default true) - show the kernel usage sidebar panel

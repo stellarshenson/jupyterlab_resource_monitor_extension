@@ -73,6 +73,7 @@ install: build
 ## run tests
 test: check_dependencies
 	jlpm test
+	pytest -vv -r ap --cov jupyterlab_resource_monitor_extension
 
 ## clean builds and installables
 clean: uninstall  check_dependencies

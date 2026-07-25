@@ -12,18 +12,6 @@ const MB = 1024 ** 2;
 export type MemLevel = 'normal' | 'warn' | 'danger';
 
 /**
- * A run of status text. `columns` marks a numeric run whose width must not
- * change with its value: the renderer gives it a box that many `ch` wide - a
- * `ch` is the advance of a digit in whatever font the browser resolves, and
- * `tabular-nums` makes every digit that width - so the reserved space comes
- * from the CSS box rather than from any padding glyph's metrics.
- */
-export interface ISegment {
-  text: string;
-  columns?: number;
-}
-
-/**
  * Format a byte count with a unit chosen for readability.
  */
 export function formatBytes(bytes: number): string {
@@ -47,42 +35,55 @@ function valueInUnit(bytes: number, unit: string): string {
 }
 
 /**
- * Build the memory status text as `Mem: <used> / <total> <unit> (NN%)`.
+ * Format the memory status text as `Mem: <used> / <total> <unit> (NN%)`.
  *
- * Used is expressed in the same unit as the total, so it never exceeds the
- * total's character count and fits the column reserved for it. That column and
- * the three-column percentage keep the rendered width constant for a given
- * total (constant per host), so no digit-count or unit change - and no
- * threshold crossing - ever shifts the row's neighbours. The percentage is
- * always shown as the glanceable distance-to-ceiling signal and as a
- * non-colour pressure cue.
+ * Used is expressed in the same unit as the total. The text is flush - single
+ * spacing, no reserved-width padding - so the rendered width tracks the value.
+ * The percentage suffix is included only when `percent` is a number; pass
+ * `null` to omit it (the show-percentage setting is off).
  */
-export function memorySegments(
+export function formatMemoryText(
   usedBytes: number,
   totalBytes: number,
-  percent: number
-): ISegment[] {
+  percent: number | null
+): string {
   const [totalValue, unit] = formatBytes(totalBytes).split(' ');
-  return [
-    { text: 'Mem: ' },
-    { text: valueInUnit(usedBytes, unit), columns: totalValue.length },
-    { text: ` / ${totalValue} ${unit} (` },
-    { text: `${Math.round(percent)}`, columns: 3 },
-    { text: '%)' }
-  ];
+  const used = valueInUnit(usedBytes, unit);
+  const pct = percent === null ? '' : ` (${Math.round(percent)}%)`;
+  return `Mem: ${used} / ${totalValue} ${unit}${pct}`;
 }
 
 /**
- * Build the CPU status text as `CPU: <n>%`, the percentage holding a
- * three-column box so the bounded 0-100% reading keeps a constant rendered
- * width and never shifts its neighbours.
+ * How the CPU reading is presented.
+ *
+ * The server reports a normalised percentage - busy time over all available
+ * cores, so 100% means every core saturated. `aggregate` re-expands that to the
+ * top-style sum where each core contributes its own 100%, and `bar` shows the
+ * normalised fraction as a filled bar instead of a number.
  */
-export function cpuSegments(percent: number): ISegment[] {
-  return [
-    { text: 'CPU: ' },
-    { text: `${Math.round(percent)}`, columns: 3 },
-    { text: '%' }
-  ];
+export type CpuMode = 'normalised' | 'aggregate' | 'bar';
+
+/**
+ * Format the CPU status text as `CPU: <n>%`, flush with no reserved width.
+ *
+ * In `aggregate` mode the normalised percentage is multiplied back out by the
+ * core count, so a fully busy 8-core box reads `800%` as `top` would report it.
+ */
+export function formatCpuText(
+  percent: number,
+  mode: CpuMode = 'normalised',
+  cpuCount = 1
+): string {
+  const value = mode === 'aggregate' ? percent * cpuCount : percent;
+  return `CPU: ${Math.round(value)}%`;
+}
+
+/**
+ * The fraction of total CPU capacity in use, clamped to 0-1 - the bar's fill,
+ * full only when every available core is saturated.
+ */
+export function cpuFraction(percent: number): number {
+  return Math.min(Math.max(percent / 100, 0), 1);
 }
 
 /**

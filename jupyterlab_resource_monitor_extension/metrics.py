@@ -11,6 +11,11 @@ import os
 import threading
 import time
 
+# Both samplers tick at the rate the frontend polls at (state.ts POLL_INTERVAL).
+# Sampling faster than that does work nobody reads; slower, and a poll can
+# return a reading older than the interval it was promised.
+SAMPLE_INTERVAL = 5.0
+
 
 class ResourceSampler:
     """Samples memory and CPU usage off the event loop and caches a snapshot.
@@ -23,7 +28,7 @@ class ResourceSampler:
     Without cgroup v2, falls back to ``/proc/meminfo`` and ``/proc/stat``.
     """
 
-    def __init__(self, interval=5.0, cgroup_root="/sys/fs/cgroup",
+    def __init__(self, interval=SAMPLE_INTERVAL, cgroup_root="/sys/fs/cgroup",
                  proc_root="/proc", log=None):
         self._interval = interval
         self._cgroup_root = cgroup_root
@@ -70,7 +75,8 @@ class ResourceSampler:
                 if self._log is not None and not self._warned:
                     self._warned = True
                     self._log.warning(
-                        "jupyterlab_resource_monitor_extension sampler failed",
+                        "jupyterlab_resource_monitor_extension sampler "
+                        "failed, further failures will not be logged",
                         exc_info=True,
                     )
             self._stop_event.wait(self._interval)

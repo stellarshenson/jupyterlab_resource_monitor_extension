@@ -1,7 +1,7 @@
 {
     "name": "jupyterlab_resource_monitor_extension",
-    "version": "1.0.11",
-    "description": "Jupyterlab extension to replace jupyter-resource-usage with less intrusive and better implementation for resource usage",
+    "version": "1.0.23",
+    "description": "JupyterLab extension replacing jupyter-resource-usage with a less intrusive, better implementation of resource usage monitoring",
     "keywords": [
         "jupyter",
         "jupyterlab",
@@ -13,13 +13,14 @@
     },
     "license": "BSD-3-Clause",
     "author": {
-        "name": "Stellars Henson <konrad.jelen+github@gmail.com>",
+        "name": "Stellars Henson",
         "email": "konrad.jelen+github@gmail.com"
     },
     "files": [
         "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
         "style/**/*.{css,js,eot,gif,html,jpg,json,png,svg,woff2,ttf}",
-        "src/**/*.{ts,tsx}"
+        "src/**/*.{ts,tsx}",
+        "schema/*.json"
     ],
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -58,8 +59,12 @@
     "dependencies": {
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/coreutils": "^6.0.0",
+        "@jupyterlab/notebook": "^4.0.0",
         "@jupyterlab/services": "^7.0.0",
+        "@jupyterlab/settingregistry": "^4.0.0",
         "@jupyterlab/statusbar": "^4.0.0",
+        "@jupyterlab/translation": "^4.0.0",
+        "@jupyterlab/ui-components": "^4.0.0",
         "@lumino/polling": "^2.0.0",
         "@lumino/widgets": "^2.0.0"
     },
@@ -119,7 +124,8 @@
             }
         },
         "extension": true,
-        "outputDir": "jupyterlab_resource_monitor_extension/labextension"
+        "outputDir": "jupyterlab_resource_monitor_extension/labextension",
+        "schemaDir": "schema"
     },
     "prettier": {
         "singleQuote": true,

@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
     "jupyter_server>=2.4.0,<3"
@@ -48,7 +49,7 @@ fields = ["description", "authors", "urls", "keywords"]
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["jupyterlab_resource_monitor_extension/labextension"]
-exclude = [".github", "binder"]
+exclude = [".github", "binder", ".claude"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "jupyterlab_resource_monitor_extension/labextension" = "share/jupyter/labextensions/jupyterlab_resource_monitor_extension"
