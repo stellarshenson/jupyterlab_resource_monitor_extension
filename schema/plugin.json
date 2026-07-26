@@ -25,8 +25,8 @@
     "cpuMode": {
       "type": "string",
       "title": "CPU display mode",
-      "description": "How the CPU reading is shown. 'normalised' is the share of all cores together (0-100%); 'aggregate' sums each core's own 100%, as top reports it; 'bar' shows a filled bar instead of a number, full when every core is saturated.",
-      "enum": ["normalised", "aggregate", "bar"],
+      "description": "How the CPU reading is shown. 'normalised' is the share of all cores together (0-100%); 'aggregate' sums each core's own 100%, as top reports it; 'bar' shows a filled bar instead of a number, full when every core is saturated; 'grid' draws a square of cells showing the load on each core assigned to this server, so an evenly busy machine and a few pinned cores look different - where a CPU quota is narrower than the cores it runs on the allowance is a slice of time rather than a set of cores, and it falls back to the bar.",
+      "enum": ["normalised", "aggregate", "bar", "grid"],
       "default": "normalised"
     },
     "showKernelUsage": {

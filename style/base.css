@@ -38,6 +38,11 @@
   height: 9px;
   box-sizing: border-box;
   border: 1px solid currentcolor;
+
+  /* The item is a flex container, so this is a flex item and would otherwise
+     absorb layout pressure at flex-shrink: 1 - compressing horizontally while
+     the height holds, which is the whole shape of the thing gone. */
+  flex: none;
 }
 
 .jp-ResourceMonitor-barFill {
@@ -46,6 +51,50 @@
   bottom: 0;
   left: 0;
   background-color: currentcolor;
+}
+
+/* The CPU grid: a square whose cells are groups of the cores assigned to this
+   server, each gaining opacity with its own load. Cells take the surrounding
+   text colour, like the bar, so the grid reads as typography rather than as a
+   coloured indicator. */
+.jp-ResourceMonitor-grid {
+  display: grid;
+
+  /* The gaps are the only separation between cells - the status bar background
+     shows through them, so no internal rules are drawn. */
+  gap: 1px;
+
+  /* Same reason as the bar: the item is a flex container, so a trailing space
+     in the label would be trimmed and the gap has to be a margin. */
+  margin-left: 5px;
+
+  /* Square, in pixels rather than inherited from line-height. 13px with a 1px
+     border and 1px gaps divides exactly at every size the grid uses: 5px cells
+     at 2x2, 3px at 3x3, 2px at 4x4 - no sub-pixel cells anywhere. The column
+     count is set inline; rows follow it so the cells stay square. */
+  width: 13px;
+  height: 13px;
+  box-sizing: border-box;
+  border: 1px solid currentcolor;
+  grid-auto-rows: 1fr;
+
+  /* Square is a promise, and flex-shrink: 1 breaks it. As a flex item in a
+     crowded status bar this compresses horizontally - min-width: auto resolves
+     through the 1fr tracks to zero, so nothing stops it - while height: 13px
+     holds, and the square renders as a rectangle. */
+  flex: none;
+}
+
+.jp-ResourceMonitor-gridCell {
+  background-color: currentcolor;
+}
+
+/* Past the hot threshold a cell burns brighter by taking the highest-contrast
+   UI foreground instead of the item's own. Deliberately not the warn colour:
+   sustained 100% CPU is ordinary during legitimate compute, so the CPU item
+   never borrows the alarm vocabulary the memory item uses for pressure. */
+.jp-ResourceMonitor-gridCellHot {
+  background-color: var(--jp-ui-font-color0);
 }
 
 /* Kernel usage sidebar panel. */

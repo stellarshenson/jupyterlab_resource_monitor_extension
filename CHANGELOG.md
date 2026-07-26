@@ -2,6 +2,22 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.27] - 2026-07-26
+
+### Added
+
+- `grid` CPU display mode: a square of cells showing the load on each core assigned to this server, so a few pinned cores and an evenly busy machine are distinguishable at the same aggregate percentage. Cells gain opacity with load and burn brighter past 75%; where a CPU quota is narrower than the cores it runs on, the allowance is a slice of time rather than a set of cores and the item falls back to the bar
+- `per_core` in the metrics payload: one percentage per assigned core, read from the `cpuN` lines of `/proc/stat`, or `null` where the cores are not the real ceiling
+
+### Fixed
+
+- CPU percentages were divided by the host's total core count whenever no cgroup quota applied, because `os.cpu_count()` ignores CPU confinement; a container pinned to four cores of a 64-core host reported a saturated server at about 6%. The count now comes from the cgroup's own `cpuset.cpus.effective`, which is the population `cpu.stat` measures, with a quota still taking precedence
+- A CPU quota wider than the cores it may run on widened the denominator past them, so a container given `CPUQuota=400%` on two cores reported 50% while both were saturated. The ceiling and the core set are now resolved as one value and cannot disagree
+- An unreadable or non-UTF-8 `/proc/stat` aborted the whole sample rather than only the CPU part of it, so the status bar hid the memory reading too
+- The status bar's fixed-size grid and bar compressed along one axis on a crowded status bar, rendering the square grid as a rectangle
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.25] - 2026-07-25
 
 Release-tooling only. No functional change to the extension.
@@ -11,8 +27,6 @@ Release-tooling only. No functional change to the extension.
 - `make test` now runs the Python suite alongside the frontend one, so a server-side regression is caught locally rather than only in CI
 - `make publish` is the sole release path; the `prep-release` and `publish-release` workflows are removed because they own the version and the upload just as the Makefile does, and two live mechanisms can disagree on the next version
 - `check-release.yml` is retained - it validates that the package is releasable and never publishes
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.24] - 2026-07-25
 

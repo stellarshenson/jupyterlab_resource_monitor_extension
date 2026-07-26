@@ -1,3 +1,5 @@
+import schema from '../../schema/plugin.json';
+
 import {
   HIDE_AFTER_FAILURES,
   initialPollState,
@@ -112,10 +114,15 @@ describe('resolveDisplaySettings', () => {
     expect(s.cpuMode).toEqual('bar');
   });
 
-  it('accepts every declared cpu mode and rejects anything else', () => {
-    expect(from({ cpuMode: 'normalised' }).cpuMode).toEqual('normalised');
-    expect(from({ cpuMode: 'aggregate' }).cpuMode).toEqual('aggregate');
-    expect(from({ cpuMode: 'bar' }).cpuMode).toEqual('bar');
+  it('accepts every mode the schema declares and rejects anything else', () => {
+    // Driven from the schema rather than a hand-kept list: the two can drift,
+    // and a mode the settings editor offers while the code downgrades it is a
+    // feature that is dead on arrival with every test still green.
+    const declared = schema.properties.cpuMode.enum;
+    expect(declared).toEqual(['normalised', 'aggregate', 'bar', 'grid']);
+    declared.forEach(mode => {
+      expect(from({ cpuMode: mode }).cpuMode).toEqual(mode);
+    });
     expect(from({ cpuMode: 'nonsense' }).cpuMode).toEqual('normalised');
     expect(from({ cpuMode: null }).cpuMode).toEqual('normalised');
   });

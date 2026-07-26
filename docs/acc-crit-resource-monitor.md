@@ -8,9 +8,11 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 - [x] **CPU item** - status bar shows current CPU utilization percent, format `CPU: <n>%`
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: implemented, verified visually via Playwright (v0.1.1)
-- [x] **Container-aware limits** - memory total and CPU capacity read from cgroup v2 (`memory.max`, `cpu.max`) when present, fallback to `/proc/meminfo` and `os.cpu_count()`
+- [x] **Container-aware limits** - memory total and CPU capacity read from cgroup v2 (`memory.max`, `cpu.max`) when present, falling back to `/proc/meminfo` for memory and to the cgroup's own `cpuset.cpus.effective` for cores
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: implemented with working-set convention, unit tested (v0.1.1)
+  - log: 2026-07-25 corrected: the CPU fallback was `os.cpu_count()`, which counts every CPU on the machine, so a cpuset-constrained container divided its usage by the host's core count (DEF-52) (v1.0.26)
+  - log: 2026-07-25 recorrected: the first fix took `len(os.sched_getaffinity(0))`, which describes one task while `cpu.stat` counts the whole cgroup - `taskset` then inflated the reading 16x (DEF-53); the ceiling is the cgroup's `cpuset.cpus.effective`, and the `/proc/stat` branch takes `os.cpu_count()` outright because its numerator is already machine-wide (v1.0.27)
 - [x] **O(1) collection** - sampler reads a fixed set of files (`/sys/fs/cgroup/*`, `/proc/meminfo`, `/proc/stat`); never calls `psutil`, never walks `/proc/<pid>` per process, cost independent of child process count
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: benchmarked flat 0.104ms@172 vs 0.113ms@872 procs (v0.1.1)
@@ -134,10 +136,59 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 - [x] **Setting: show kernel panel** - `showKernelUsage` (default true) adds or removes the panel, applied live
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: showKernelUsage adds/removes the panel via shell.add / dispose (v1.0.16)
-- [x] **Setting: CPU display mode** - `cpuMode` selects `normalised` (default, share of all cores), `aggregate` (top-style sum, N x 100%) or `bar` (outlined vertical bar in the item's own text colour, full when every core is saturated)
+- [x] **Setting: CPU display mode** - `cpuMode` selects `normalised` (default, share of all cores), `aggregate` (top-style sum, N x 100%), `bar` (outlined vertical bar in the item's own text colour, full when every core is saturated) or `grid` (square of cells, one group of cores each)
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: cpuMode with 4 jest cases; live-verified bar renders 9x14 outlined, fill 10% at CPU 10% of 64 cores, outline and fill both rgb(165,165,165) matching the item font colour (v1.0.16)
   - log: 2026-07-25 refined: the bar sat flush against the label because the item is a flex container, which trims a trailing space in the label; gap moved to a 5px margin on the bar and the bar shortened to 6x9 with border-box, browser-measured gap 5px against 12px text, vertically centred, no overlap (v1.0.17)
+  - log: 2026-07-25 extended: `grid` added as a fourth mode (v1.0.26)
+
+- [x] **Grid: cells are the cores** - in `grid` mode the item draws a square whose cells each average a contiguous slice of the cores assigned to this server, so an evenly busy machine and a few pinned cores are distinguishable at the same aggregate percentage - the one thing a single number cannot show
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: per-core sampling in `metrics.py`, bucketing in `cpuGridCells`; live-verified with 16 of 64 cores pinned by `taskset`, 4 cells fully lit and the rest at 0.04-0.11 (v1.0.26)
+- [x] **Grid: no more cells than cores** - the edge is `floor(sqrt(cores))`, capped at 4, so the square never claims more cores than exist and never draws a cell under 2px; a machine too small to divide collapses to a single cell
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: `gridSize`, 5 jest cases across 1, 2, 4, 8, 9, 16, 25 and 64 cores; browser-measured 13x13 box with 2x2 cells at 4x4 (v1.0.26)
+- [x] **Grid: square, and square cells** - the box is equal width and height in pixels and each cell likewise, asserted in a real browser rather than inferred from the CSS
+  - log: 2026-07-25 added after review found no tier asserted a computed style, leaving the whole geometry untested
+  - log: 2026-07-25 closed: Galata `cpugrid.spec.ts` measures the box and a cell with `boundingBox()` against a mocked 16-core snapshot; mutation-verified - shipping a 40x13 box fails it with `Expected: 13, Received: 40` (v1.0.27)
+- [x] **Grid: cells never borrow the alarm vocabulary** - grid cells take the item's own foreground and the CPU item never gains the warn or danger class, so DEF-8 and DEF-17 cannot return through the new CSS
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: the Galata test asserts a cool cell's computed `background-color` equals the item's computed `color`, that a hot cell differs from a cool one, and that neither pressure class is present (v1.0.27)
+- [x] **Grid: lit cells spread rather than fill** - cell k is drawn at an ordered-dithering position (Bayer at 4x4), not in reading order, because Linux packs work onto low-numbered CPUs and contiguous placement would light the top row and read as a progress bar
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: SPREAD tables in `format.ts`; live-verified the pattern moves with the cores - `taskset` on cores 0-15 lit positions 0, 2, 8, 10 and on cores 32-47 lit 1, 3, 9, 11, complementary and neither a filled row (v1.0.26)
+- [x] **Grid: opacity to the knee, then brighter** - a cell's opacity equals its usage up to 0.75 and continues to 1.0 above it, where the cell also switches to the highest-contrast UI foreground; deliberately not the warn colour, since sustained 100% CPU is ordinary during compute
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: `GRID_HOT` with jest cases either side of the threshold; browser-measured cold cells `rgba(0,0,0,0.87)` (the item's own colour) against hot `rgb(0,0,0)` (v1.0.26)
+- [x] **Grid: a quota narrower than its cores falls back to the bar** - when `cpu.max` grants less than the core set holds, the entitlement is a slice of time rather than a set of cores and no arrangement of cells can represent it, so the sampler reports `per_core: null` and the item renders the ordinary bar
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: regime detection in `_per_core_percent`, 2 pytest cases (quota alone, quota narrowed by a cpuset) and 3 jest cases; unit-tested only - not exercised against a real `docker --cpus` container (v1.0.26)
+  - log: 2026-07-25 revised: the fallback drew a dithered gauge, which review showed to be strictly less legible than the bar it duplicated - `SPREAD` exists to stop a monotone fill reading as a progress bar, and a gauge is exactly a monotone fill, so scattering it made magnitude unreadable (25% then 37.5% then 50% lit positions 0, then 3, then 3). Gauge deleted; the item falls through to `setBar` (v1.0.27)
+  - log: 2026-07-25 rekeyed: the gate tested "cpuset absent", so `--cpus=2 --cpuset-cpus=0-3` drew a grid the rule itself forbids (DEF-56); it now compares the quota against the core count, which subsumes the old test and admits the honest case (`--cpus=4 --cpuset-cpus=0-3`, k8s static cpuManager) that the old one refused (v1.0.27)
+- [x] **Grid: one core population, never two** - the cells cover exactly the cores the percentage is divided by, so the grid and the number beside it can never describe different sets
+  - log: 2026-07-25 added after review found `cpu_count` coming from the cgroup cpuset while the cells came from `sched_getaffinity` - under `taskset -c 0-3` a 4-core grid sat beside "of 64 CPUs" in one hover (DEF-55)
+  - log: 2026-07-25 closed: both come from `_cpuset_cpus()`; `test_nothing_consults_this_task_s_affinity_mask` pins the denominator and the cell count together, mutation-verified - sourcing either from affinity turns the suite red (v1.0.27)
+  - log: 2026-07-25 reopened: closed too early. Both were keyed off the cpuset but the _quota_ was not clamped to it, so `CPUQuota=400%` with `AllowedCPUs=0-1` still divided by 4 while drawing 2 cells (DEF-58); the criterion held only where the quota was narrower than its cores, which is the only side the suite tested
+  - log: 2026-07-25 closed: `_cpu_scope()` returns the capacity and the core set as one value, so `capacity == len(ids)` whenever cells exist at all and two functions can no longer disagree; `_read_cpu` resolves it once per tick and the `/proc` fallback moves both to the machine together. A parametrised sweep asserts the pair across the quota boundary; mutation-verified (v1.0.27)
+- [x] **Grid: the tooltip says which of the two things the cells are** - in grid mode the tooltip names either the assigned cores or the fallback, so a machine-wide picture is never read as this server's own load
+  - log: 2026-07-25 added after review found the tooltip and the settings description promised cores in both regimes
+  - log: 2026-07-25 closed: `cpuTooltip` takes an optional regime and appends "grid shows load on each core assigned to this server" or the fallback wording; the schema description names the fallback too (v1.0.27)
+  - log: 2026-07-25 reopened and reclosed: review proved the criterion was closed on untested code - deleting the whole suffix left every tier green. Three jest cases now pin both suffixes and the silent default, and the Galata test asserts the rendered `aria-label`; mutation-verified. The fallback wording also stopped naming a quota, since the readings equally go missing on an unreadable `/proc/stat` (v1.0.27)
+  - log: 2026-07-25 reopened and reclosed again: the same mistake one level out. `cpuTooltip` was covered but its `'allowance'` _call site_ was not, so review's mutation replacing the regime with `undefined` left jest 103 and Galata green while the wording never reached a user. Galata now renders the `per_core: null` regime and asserts the rendered `aria-label`; mutation-verified against the shipped bundle (v1.0.27)
+- [x] **Grid: the bar fallback is actually a bar** - where the sampler reports no core set, grid mode renders the bar rather than dropping to plain text
+  - log: 2026-07-25 added after review found the render branch unguarded at every tier - `index.ts` matches no jest spec, and Galata's only grid fixture always supplied `per_core`
+  - log: 2026-07-25 closed: Galata case with `per_core: null` asserts the bar is visible and no grid is present; mutation-verified - narrowing the branch to `'bar'` alone fails it (v1.0.27)
+- [x] **Fixed-size items never absorb layout pressure** - the grid and the bar keep their dimensions on a status bar too crowded to fit them, rather than compressing along one axis
+  - log: 2026-07-25 added after the user reported the square grid rendering as a rectangle (DEF-59)
+  - log: 2026-07-25 closed: `flex: none` on both; Galata squeezes the item below its content width and asserts the box is still square. Mutation-verified - restoring the default shrink factor renders it 5px wide by 13px tall (v1.0.27)
+  - log: 2026-07-26 reopened and reclosed: closed on grid-only evidence. The squeeze case runs in grid mode, so it never reaches the bar, and mutating the bar's declaration left every tier green while it rendered 2px by 9px. Both halves are now measured under the same squeeze - the bar inside the fallback case, which is the one place a bar node exists in this file; mutation-verified separately (v1.0.27)
+- [x] **Grid: bounded per-core read** - the per-core read stops at the first non-`cpu` line of `/proc/stat`, so the `intr` line that follows - one counter per IRQ, hundreds of fields on a large machine - is never parsed, keeping the addition within the fixed-cost mandate
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: `test_per_core_stops_before_the_intr_line` puts a `cpu9` line after `intr` that would swing to 100% if reached; verified the test fails (reads 100.0) when the break is removed (v1.0.26)
+- [x] **Edge: core missing from /proc/stat** - a core in the assigned set but absent from `/proc/stat` reads 0 rather than dropping out, so the list keeps its length and the remaining cores keep their cell positions
+  - log: 2026-07-25 added
+  - log: 2026-07-25 closed: `_core_percent` returns 0 for an absent sample, `test_per_core_holds_position_when_a_core_disappears`; the item rebuilds its cells only when the count changes the grid shape (v1.0.26)
+  - log: 2026-07-25 narrowed: originally worded as covering CPU hotplug, which it does not - offlining a CPU drops it from `cpuset.cpus.effective` too, so the set shortens and the grid legitimately reshapes. What is guaranteed is the straddling tick, where the core set and `/proc/stat` are read a moment apart; a reshape once both agree is correct behaviour, not a defect (v1.0.27)
 - [x] **Kernel panel off-loop** - the `/proc` tree walk runs on the kernel sampler thread; the handler only resolves a PID from the in-memory kernel manager and returns the cache, and the walk is bounded to 2000 file reads, which is what the cost actually tracks - a heavily threaded kernel spends most of it enumerating `task/*/children`
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: KernelSampler thread owns the walk, handler resolves the PID in-memory and reads cache; walk capped at 500 procs, test_walk_is_bounded (v1.0.16)
@@ -164,7 +215,8 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 
 ## API
 
-- `GET /jupyterlab-resource-monitor-extension/metrics` -> `{mem: {used_bytes, total_bytes, limit_source}, cpu: {percent, cpu_count}, ts}`; `limit_source` is `"cgroup"` (container limit) or `"host"` (physical RAM); 200 always once loaded, values from latest cached sample
+- `GET /jupyterlab-resource-monitor-extension/metrics` -> `{mem: {used_bytes, total_bytes, limit_source}, cpu: {percent, cpu_count, per_core}, ts}`; `limit_source` is `"cgroup"` (container limit) or `"host"` (physical RAM); 200 always once loaded, values from latest cached sample
+- `per_core` is one 0-100 percentage per core assigned to this server, in ascending CPU index, and its length always equals `cpu_count`; `null` where a quota is narrower than the core set, or where the per-core read failed - the same two causes the tooltip refuses to choose between
 - Server samples every 5s (background thread) and the frontend polls every 5s (independent cadences), so displayed values can be up to ~10s stale in the worst case
 - `GET /jupyterlab-resource-monitor-extension/kernels?kernel_id=<id>` -> `{kernel: {id, name, memory_bytes, cpu_percent} | null, ts}`; each request registers that kernel and renews its 15s lease, so sampling stops when polling does; `kernel` is `null` for a missing or unknown id, a kernel with no local process, or before the first sample lands
 - Kernel sampling is 5s on its own thread, matching the panel poll; `cpu_percent` is a share of one core, so a multi-threaded kernel can exceed 100%
@@ -175,5 +227,5 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 - `showMemory` (boolean, default true) - show the memory item
 - `showCpu` (boolean, default true) - show the CPU item
 - `showMemoryPercent` (boolean, default false) - show the `(NN%)` suffix on the memory item
-- `cpuMode` (`normalised` default, `aggregate`, `bar`) - how the CPU reading is presented
+- `cpuMode` (`normalised` default, `aggregate`, `bar`, `grid`) - how the CPU reading is presented
 - `showKernelUsage` (boolean, default true) - show the kernel usage sidebar panel

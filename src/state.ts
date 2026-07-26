@@ -5,6 +5,8 @@
  * than buried in the plugin's activation closure.
  */
 
+import { CpuMode } from './format';
+
 /**
  * Consecutive polls with an unchanged timestamp before the snapshot is treated
  * as stale - the sampler thread has stopped producing samples.
@@ -76,7 +78,7 @@ export interface IDisplaySettings {
   showMemory: boolean;
   showCpu: boolean;
   showMemoryPercent: boolean;
-  cpuMode: 'normalised' | 'aggregate' | 'bar';
+  cpuMode: CpuMode;
   showKernelUsage: boolean;
 }
 
@@ -98,7 +100,10 @@ export function resolveDisplaySettings(
     showCpu: get('showCpu') !== false,
     showKernelUsage: get('showKernelUsage') !== false,
     showMemoryPercent: get('showMemoryPercent') === true,
-    cpuMode: mode === 'aggregate' || mode === 'bar' ? mode : 'normalised'
+    cpuMode:
+      mode === 'aggregate' || mode === 'bar' || mode === 'grid'
+        ? mode
+        : 'normalised'
   };
 }
 

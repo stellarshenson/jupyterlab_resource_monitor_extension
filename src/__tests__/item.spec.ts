@@ -1,3 +1,5 @@
+import { GRID_HOT } from '../format';
+
 import { ResourceItem } from '../item';
 
 describe('ResourceItem', () => {
@@ -136,6 +138,117 @@ describe('ResourceItem', () => {
       expect(item.node.contains(fill(item))).toBe(true);
       expect(item.node.textContent).toEqual('CPU:');
     });
+  });
+
+  describe('setGrid', () => {
+    const cells = (item: ResourceItem): HTMLElement[] =>
+      Array.from(
+        item.node.querySelectorAll('.jp-ResourceMonitor-gridCell')
+      ) as HTMLElement[];
+
+    const grid = (item: ResourceItem): HTMLElement =>
+      item.node.querySelector('.jp-ResourceMonitor-grid') as HTMLElement;
+
+    it('builds a label plus one cell per grid position', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0.1, 0.2, 0.3, 0.4], 2);
+      expect(item.node.textContent).toEqual('CPU:');
+      expect(
+        item.node.querySelectorAll('.jp-ResourceMonitor-grid')
+      ).toHaveLength(1);
+      expect(cells(item)).toHaveLength(4);
+    });
+
+    it('lays the cells out square', () => {
+      // without a column count the cells render as a single row, not a grid
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', new Array(9).fill(0), 3);
+      expect(grid(item).style.gridTemplateColumns).toEqual('repeat(3, 1fr)');
+    });
+
+    it('gives each cell its own opacity', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0, 0.25, 0.5, 1], 2);
+      expect(cells(item).map(cell => cell.style.opacity)).toEqual([
+        '0',
+        '0.25',
+        '0.5',
+        '1'
+      ]);
+    });
+
+    it('updates the cells in place rather than rebuilding the DOM', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0, 0, 0, 0], 2);
+      const first = cells(item)[0];
+      item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+      expect(cells(item)[0]).toBe(first);
+      expect(first.style.opacity).toEqual('0.5');
+      expect(
+        item.node.querySelectorAll('.jp-ResourceMonitor-grid')
+      ).toHaveLength(1);
+    });
+
+    it('rebuilds when a changed core count reshapes the grid', () => {
+      // cores can be hotplugged away under a running server
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', new Array(4).fill(0), 2);
+      item.setGrid('CPU:', new Array(9).fill(0), 3);
+      expect(cells(item)).toHaveLength(9);
+      expect(
+        item.node.querySelectorAll('.jp-ResourceMonitor-grid')
+      ).toHaveLength(1);
+    });
+
+    it('burns a cell only once it is past the hot threshold', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [GRID_HOT, GRID_HOT + 0.01, 0, 1], 2);
+      expect(
+        cells(item).map(cell =>
+          cell.classList.contains('jp-ResourceMonitor-gridCellHot')
+        )
+      ).toEqual([false, true, false, true]);
+    });
+
+    it('stops burning when the load falls back', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [1, 0, 0, 0], 2);
+      item.setGrid('CPU:', [0.1, 0, 0, 0], 2);
+      expect(
+        cells(item)[0].classList.contains('jp-ResourceMonitor-gridCellHot')
+      ).toBe(false);
+    });
+
+    it('rebuilds after the item is switched back to text', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+      item.text = 'CPU: 50%';
+      expect(item.node.querySelector('.jp-ResourceMonitor-grid')).toBeNull();
+
+      item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+      expect(item.node.contains(cells(item)[0])).toBe(true);
+      expect(item.node.textContent).toEqual('CPU:');
+    });
+
+    it('does not write into cells the bar has detached', () => {
+      // switching cpuMode from grid to bar replaces the subtree, so the cached
+      // cells have to go with it - otherwise the next poll writes opacity to
+      // nodes that are no longer in the document and the grid never reappears
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+      item.setBar('CPU:', 0.5);
+      item.setGrid('CPU:', [0.9, 0, 0, 0], 2);
+      expect(item.node.contains(cells(item)[0])).toBe(true);
+      expect(cells(item)[0].style.opacity).toEqual('0.9');
+    });
+  });
+
+  it('drops the grid when plain text is set', () => {
+    const item = new ResourceItem('cpu');
+    item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+    item.text = 'CPU: 50%';
+    expect(item.node.textContent).toEqual('CPU: 50%');
+    expect(item.node.querySelectorAll('span')).toHaveLength(0);
   });
 
   it('drops the bar when plain text is set', () => {

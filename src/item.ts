@@ -2,7 +2,7 @@ import { ISignal, Signal } from '@lumino/signaling';
 
 import { Widget } from '@lumino/widgets';
 
-import { MemLevel } from './format';
+import { GRID_HOT, MemLevel } from './format';
 
 /**
  * A plain-text status bar item that carries a memory-pressure level, and can
@@ -50,11 +50,20 @@ export class ResourceItem extends Widget {
   }
 
   set text(value: string) {
-    this.node.textContent = value;
-    // textContent replaced the bar's DOM, so the cached fill is gone too -
-    // dropping the reference makes the next setBar rebuild rather than write
-    // to a detached node.
+    this._reset(value);
+  }
+
+  /**
+   * Replace the item's contents with a plain label and drop every cached node.
+   *
+   * Writing textContent detaches whatever the previous display mode built, so
+   * the caches have to go with it - otherwise the next setBar or setGrid finds
+   * a live-looking reference and writes into a node no longer in the document.
+   */
+  private _reset(label: string): void {
+    this.node.textContent = label;
     this._bar = null;
+    this._grid = null;
   }
 
   set tooltip(value: string) {
@@ -81,7 +90,7 @@ export class ResourceItem extends Widget {
    */
   setBar(label: string, fraction: number): void {
     if (!this._bar) {
-      this.node.textContent = label;
+      this._reset(label);
       const bar = document.createElement('span');
       bar.className = 'jp-ResourceMonitor-bar';
       const fill = document.createElement('span');
@@ -93,9 +102,48 @@ export class ResourceItem extends Widget {
     this._bar.style.height = `${Math.round(fraction * 100)}%`;
   }
 
+  /**
+   * Render the reading as a label plus a square grid of cells, one cell per
+   * group of cores, each gaining opacity with its own usage and switching to
+   * the brighter foreground once past `GRID_HOT`.
+   *
+   * Brightness rather than a warn colour is deliberate: sustained 100% CPU is
+   * ordinary during legitimate compute, so the CPU item never borrows the
+   * alarm vocabulary the memory item uses for pressure.
+   *
+   * The cell nodes are built once and only their opacity is written on later
+   * polls; the grid is rebuilt solely when the core count changes its shape.
+   */
+  setGrid(label: string, cells: number[], size: number): void {
+    if (!this._grid || this._grid.length !== cells.length) {
+      this._reset(label);
+      const grid = document.createElement('span');
+      grid.className = 'jp-ResourceMonitor-grid';
+      grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      this._grid = cells.map(() => {
+        const cell = document.createElement('span');
+        cell.className = 'jp-ResourceMonitor-gridCell';
+        grid.appendChild(cell);
+        return cell;
+      });
+      this.node.appendChild(grid);
+    }
+    const nodes = this._grid;
+    cells.forEach((value, i) => {
+      nodes[i].style.opacity = `${value}`;
+      nodes[i].classList.toggle(
+        'jp-ResourceMonitor-gridCellHot',
+        value > GRID_HOT
+      );
+    });
+  }
+
   // The bar's fill element while the item is in bar mode, so a poll updates
   // the height instead of rebuilding the DOM; null when showing plain text.
   private _bar: HTMLElement | null = null;
+  // The grid's cell elements while the item is in grid mode, for the same
+  // reason; null when showing plain text or a bar.
+  private _grid: HTMLElement[] | null = null;
   private _active = false;
   private _activeChanged = new Signal<this, void>(this);
 }

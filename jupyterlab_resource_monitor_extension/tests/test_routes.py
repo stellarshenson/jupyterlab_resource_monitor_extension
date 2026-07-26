@@ -10,7 +10,7 @@ async def test_metrics(jp_fetch):
     payload = json.loads(response.body)
     assert set(payload) == {"mem", "cpu", "ts"}
     assert set(payload["mem"]) == {"used_bytes", "total_bytes", "limit_source"}
-    assert set(payload["cpu"]) == {"percent", "cpu_count"}
+    assert set(payload["cpu"]) == {"percent", "cpu_count", "per_core"}
 
 
 async def test_kernels_without_a_kernel_id(jp_fetch):

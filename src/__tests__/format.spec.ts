@@ -1,9 +1,12 @@
 import {
   cpuFraction,
+  cpuGridCells,
   cpuTooltip,
   formatBytes,
   formatCpuText,
   formatMemoryText,
+  GRID_HOT,
+  gridSize,
   MemLevel,
   memoryLevel,
   memoryTooltip
@@ -114,6 +117,116 @@ describe('format', () => {
     });
   });
 
+  describe('gridSize', () => {
+    it('never holds more cells than there are cores', () => {
+      // the square is the largest that fits inside the core count
+      expect(gridSize(4)).toEqual(2);
+      expect(gridSize(8)).toEqual(2); // 3x3 would be 9 cells for 8 cores
+      expect(gridSize(9)).toEqual(3);
+      expect(gridSize(16)).toEqual(4);
+    });
+
+    it('caps the edge so cells never go sub-pixel', () => {
+      // 5x5 in a 13px box would be under 2px a cell
+      expect(gridSize(25)).toEqual(4);
+      expect(gridSize(64)).toEqual(4);
+    });
+
+    it('collapses to a single cell on a machine too small to divide', () => {
+      expect(gridSize(1)).toEqual(1);
+      expect(gridSize(2)).toEqual(1);
+    });
+
+    it('survives a missing or nonsensical count', () => {
+      expect(gridSize(0)).toEqual(1);
+      expect(gridSize(NaN)).toEqual(1);
+    });
+  });
+
+  describe('cpuGridCells', () => {
+    const cellsOf = (perCore: number[]): number[] =>
+      cpuGridCells(perCore).cells;
+
+    it('averages the cores in each cell', () => {
+      // 8 cores over 4 cells, two cores apiece
+      expect(cellsOf([100, 0, 0, 0, 0, 0, 0, 0])).toEqual([0.5, 0, 0, 0]);
+    });
+
+    it('returns the edge length that describes the cells it returns', () => {
+      // setGrid is handed both and cannot check one against the other, so they
+      // have to leave here as a pair
+      expect(cpuGridCells([0, 0, 0, 0])).toEqual({
+        cells: [0, 0, 0, 0],
+        size: 2
+      });
+      expect(cpuGridCells(Array(16).fill(0)).size).toEqual(4);
+    });
+
+    it('spreads the lit cells instead of filling the top row', () => {
+      // Four of eight cores pinned. Drawn in reading order this lights cells 0
+      // and 1 - the whole top row - and reads as a half-full progress bar;
+      // spread, it reads as half the machine.
+      expect(cellsOf([100, 100, 100, 100, 0, 0, 0, 0])).toEqual([1, 0, 0, 1]);
+    });
+
+    it('spreads a 4x4 the same way, on the hardware that gets one', () => {
+      // 64 cores is a 4x4 of 4 cores each, and every 2x2 case above resolves
+      // to SPREAD[2] - so without this, SPREAD[4] could be reading order and
+      // the whole suite stays green while the grid fills its top row
+      const perCore = Array.from({ length: 64 }, (_unused, i) =>
+        i < 16 ? 100 : 0
+      );
+      expect(cellsOf(perCore)).toEqual([
+        1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0
+      ]);
+    });
+
+    it('spreads a 3x3 too', () => {
+      // 9 cores, one cell each; the first three light both top corners and the
+      // bottom-right, never three in a row
+      const perCore = [100, 100, 100, 0, 0, 0, 0, 0, 0];
+      expect(cellsOf(perCore)).toEqual([1, 0, 1, 0, 0, 0, 0, 0, 1]);
+    });
+
+    it.each([1, 4, 9, 16])(
+      'fills every cell with %i cores saturated',
+      cores => {
+        // A duplicated index in SPREAD would write two buckets into one cell and
+        // leave another at its zero default - one core group's load vanishing,
+        // one cell permanently dark. Saturating every core is what exposes it:
+        // asserting distinct outputs does NOT, because the abandoned cell's zero
+        // is itself a distinct value and the count comes out right regardless.
+        const out = cellsOf(Array(cores).fill(100));
+        expect(out).toHaveLength(cores);
+        expect(out).toEqual(Array(cores).fill(1));
+      }
+    );
+
+    it('spreads the remainder rather than dumping it on the last cell', () => {
+      // 6 cores over 4 cells gives slices of 1, 2, 1, 2
+      // core 1 shares the two-wide second slice, so its cell averages to half
+      expect(cellsOf([0, 100, 0, 0, 0, 0])).toEqual([0, 0, 0, 0.5]);
+      // core 3 has the third slice to itself, so it fills its cell outright
+      expect(cellsOf([0, 0, 0, 100, 0, 0])).toEqual([0, 1, 0, 0]);
+    });
+
+    it('distinguishes a few pinned cores from an evenly busy machine', () => {
+      // the whole point of the mode: both of these are ~50% aggregate
+      const pinned = cellsOf([100, 100, 100, 100, 0, 0, 0, 0]);
+      const even = cellsOf([50, 50, 50, 50, 50, 50, 50, 50]);
+      expect(pinned).not.toEqual(even);
+      expect(even).toEqual([0.5, 0.5, 0.5, 0.5]);
+    });
+  });
+
+  describe('GRID_HOT', () => {
+    it('is the 75% the README promises users', () => {
+      // a published contract, so pin the literal - item.spec asserts either
+      // side of the constant and would follow it anywhere it drifted
+      expect(GRID_HOT).toEqual(0.75);
+    });
+  });
+
   describe('memoryTooltip', () => {
     const GB = 1024 ** 3;
 
@@ -150,6 +263,28 @@ describe('format', () => {
       expect(cpuTooltip(12, 1 / 3)).toEqual('CPU: 12% of 0.33 CPUs');
       expect(cpuTooltip(12, 0.5)).toEqual('CPU: 12% of 0.5 CPUs');
       expect(cpuTooltip(12, 2)).toEqual('CPU: 12% of 2 CPUs');
+    });
+
+    it('says what the grid is showing when a grid is drawn', () => {
+      // the cells are the load on cores the server shares with whoever else
+      // is on them, not the server's own usage split per core, and the number
+      // alone cannot say so
+      expect(cpuTooltip(40, 8, 'cores')).toEqual(
+        'CPU: 40% of 8 CPUs; grid shows load on each core assigned to this server'
+      );
+    });
+
+    it('says why a bar is drawn in grid mode instead', () => {
+      // no cause named: the readings go missing under a narrow quota, but also
+      // on a masked /proc/stat, and only one of those involves a quota
+      expect(cpuTooltip(40, 2, 'allowance')).toEqual(
+        'CPU: 40% of 2 CPUs; no per-core readings here, so the bar shows the share of the CPU allowance in use'
+      );
+    });
+
+    it('stays silent about the grid in every other mode', () => {
+      expect(cpuTooltip(40, 8)).toEqual('CPU: 40% of 8 CPUs');
+      expect(cpuTooltip(40, 8, undefined)).toEqual('CPU: 40% of 8 CPUs');
     });
   });
 

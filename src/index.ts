@@ -16,6 +16,7 @@ import { Poll } from '@lumino/polling';
 import {
   CpuMode,
   cpuFraction,
+  cpuGridCells,
   cpuTooltip,
   formatCpuText,
   formatMemoryText,
@@ -44,7 +45,13 @@ import {
  */
 interface IMetricsSnapshot {
   mem: { used_bytes: number; total_bytes: number; limit_source: string };
-  cpu: { percent: number; cpu_count: number };
+  cpu: {
+    percent: number;
+    cpu_count: number;
+    // load on each core assigned to this server; null when no core set is
+    // informative about this server's capacity, and the grid falls to a bar
+    per_core: number[] | null;
+  };
   ts: number;
 }
 
@@ -150,9 +157,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
 
       if (showCpu) {
-        if (cpuMode === 'bar') {
+        const cores = snap.cpu.per_core;
+        const gridded = cpuMode === 'grid' && !!cores && cores.length > 0;
+        if (gridded && cores) {
+          const { cells, size } = cpuGridCells(cores);
+          cpuItem.setGrid('CPU:', cells, size);
+        } else if (cpuMode === 'grid' || cpuMode === 'bar') {
           // no trailing space: the item is a flex container, which trims it -
-          // the gap before the bar comes from the bar's own margin
+          // the gap before the bar comes from the bar's own margin. Grid mode
+          // lands here when the server has no attributable cores to draw.
           cpuItem.setBar('CPU:', cpuFraction(snap.cpu.percent));
         } else {
           cpuItem.text = formatCpuText(
@@ -161,7 +174,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
             snap.cpu.cpu_count
           );
         }
-        cpuItem.tooltip = cpuTooltip(snap.cpu.percent, snap.cpu.cpu_count);
+        cpuItem.tooltip = cpuTooltip(
+          snap.cpu.percent,
+          snap.cpu.cpu_count,
+          cpuMode === 'grid' ? (gridded ? 'cores' : 'allowance') : undefined
+        );
         cpuItem.active = true;
       } else {
         cpuItem.active = false;
