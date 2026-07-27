@@ -30,8 +30,12 @@ const mockMetrics = (page: import('@playwright/test').Page, cpu: object) =>
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
+        // deliberately in the danger band: the CPU item must not wear the
+        // memory item's vocabulary, and that only means anything while the
+        // memory item is actually wearing it. Against a calm 25% snapshot the
+        // assertion holds even if the CPU item is handed the memory level.
         mem: {
-          used_bytes: 4 * 1024 ** 3,
+          used_bytes: 15.5 * 1024 ** 3,
           total_bytes: 16 * 1024 ** 3,
           limit_source: 'host'
         },
@@ -68,14 +72,17 @@ const squeezeAndMeasure = (
   }, selector);
 
 test('grid mode renders a square of square cells', async ({ page }) => {
-  // 16 assigned cores is a 4x4, the densest grid the mode ever draws and the
-  // only size where cells reach the 2px floor.
+  // 64 cores rather than 16, though both draw the same 4x4: the cell count is
+  // then `GRID_MAX`-dependent, so raising the cap - which puts cells under the
+  // 3px floor the box arithmetic is built on - fails this test outright. At 16
+  // cores `gridSize` returns 4 whatever the cap is, and the whole geometry
+  // suite would stay green through it.
   await mockMetrics(page, {
     percent: 25,
-    cpu_count: 16,
-    // cores 0-3 saturated, the rest idle - one core per cell, so exactly
-    // four cells burn
-    per_core: Array.from({ length: 16 }, (_unused, i) => (i < 4 ? 100 : 0))
+    cpu_count: 64,
+    // cores 0-15 saturated, the rest idle - four cores per cell, so exactly
+    // the first four cells burn
+    per_core: Array.from({ length: 64 }, (_unused, i) => (i < 16 ? 100 : 0))
   });
 
   const grid = page.locator('.jp-ResourceMonitor-grid');
@@ -106,8 +113,10 @@ test('grid mode renders a square of square cells', async ({ page }) => {
   expect(cell!.width).toBeGreaterThanOrEqual(3);
 
   // The cells tile the square edge to edge, so every core busy lights it as one
-  // solid block rather than a lattice. Nothing above can see a seam: reinstating
-  // a 1px gap keeps the box 14px and the cells square, only smaller.
+  // solid block rather than a lattice. This is not the floor assertion in other
+  // words: a plain `gap: 1px` shrinks the cells to 2.25px and the floor above
+  // catches it, but a seam that leaves the cells at 3px passes every assertion
+  // before this one.
   const seams = await page.evaluate(() => {
     const r = Array.from(
       document.querySelectorAll('.jp-ResourceMonitor-gridCell')
@@ -120,6 +129,7 @@ test('grid mode renders a square of square cells', async ({ page }) => {
 
   const rendered = await page.evaluate(() => {
     const item = document.querySelector('.jp-ResourceMonitor-cpu')!;
+    const memory = document.querySelector('.jp-ResourceMonitor-memory')!;
     const all = Array.from(
       document.querySelectorAll('.jp-ResourceMonitor-gridCell')
     );
@@ -129,15 +139,33 @@ test('grid mode renders a square of square cells', async ({ page }) => {
     const cool = all.filter(
       c => !c.classList.contains('jp-ResourceMonitor-gridCellHot')
     );
+    // resolve the theme's own tokens through a throwaway node, so the hot
+    // colour can be checked against what it must be and what it must not be
+    // rather than only against the cool one
+    const probe = document.createElement('span');
+    document.body.appendChild(probe);
+    const token = (name: string): string => {
+      probe.style.backgroundColor = `var(${name})`;
+      return getComputedStyle(probe).backgroundColor;
+    };
+    const tokens = {
+      brightest: token('--jp-ui-font-color0'),
+      warn: token('--jp-warn-color1'),
+      error: token('--jp-error-color1')
+    };
+    probe.remove();
+    const pressure = (el: Element): boolean =>
+      el.classList.contains('jp-ResourceMonitor-warn') ||
+      el.classList.contains('jp-ResourceMonitor-danger');
     return {
       itemColour: getComputedStyle(item).color,
       coolColour: getComputedStyle(cool[0]).backgroundColor,
       hotColour: getComputedStyle(hot[0]).backgroundColor,
       hotCount: hot.length,
       label: item.getAttribute('aria-label'),
-      warnClass:
-        item.classList.contains('jp-ResourceMonitor-warn') ||
-        item.classList.contains('jp-ResourceMonitor-danger')
+      tokens,
+      warnClass: pressure(item),
+      memoryPressure: pressure(memory)
     };
   });
 
@@ -145,7 +173,7 @@ test('grid mode renders a square of square cells', async ({ page }) => {
   // core - only the tooltip can say so, and only this tier proves the render
   // path actually asks for that wording when a grid is what got drawn.
   expect(rendered.label).toEqual(
-    'CPU: 25% of 16 CPUs; grid shows load on each core assigned to this server'
+    'CPU: 25% of 64 CPUs; grid shows load on each core assigned to this server'
   );
 
   // Cells take the item's own foreground, so the grid reads as typography
@@ -153,11 +181,43 @@ test('grid mode renders a square of square cells', async ({ page }) => {
   expect(rendered.coolColour).toEqual(rendered.itemColour);
   // The burn is a real rendered difference, not just a class that toggles.
   expect(rendered.hotColour).not.toEqual(rendered.coolColour);
-  // Four saturated cores, one core per cell.
+  // DEF-8/DEF-17 at the colour level, which "hot differs from cool" cannot see:
+  // the burn is the brightest UI foreground, and repainting it in the alarm
+  // palette would satisfy every assertion above while the grid turns orange
+  // under ordinary compute.
+  expect(rendered.hotColour).toEqual(rendered.tokens.brightest);
+  expect(rendered.hotColour).not.toEqual(rendered.tokens.warn);
+  expect(rendered.hotColour).not.toEqual(rendered.tokens.error);
+  // Four saturated cell groups.
   expect(rendered.hotCount).toEqual(4);
-  // DEF-8: sustained 100% CPU is normal during compute, so the CPU item never
-  // wears the memory item's warn/danger vocabulary.
+  // DEF-8 at the class level. The memory item is deliberately mocked into the
+  // danger band, so this is a live discriminator: handing the CPU item the same
+  // level makes it fail, which against a calm snapshot it would not.
+  expect(rendered.memoryPressure).toBe(true);
   expect(rendered.warnClass).toBe(false);
+});
+
+test('the 3x3 grid divides exactly too', async ({ page }) => {
+  // Every geometry assertion otherwise runs at 4x4, the one edge where 12px of
+  // cells divides into whole pixels no matter how the tracks are declared.
+  // Fixing the row height to the 4x4 cell size leaves that case square and this
+  // one 4px by 3px, so the middle edge is what proves the tracks are relative.
+  await mockMetrics(page, {
+    percent: 50,
+    cpu_count: 9,
+    per_core: Array.from({ length: 9 }, () => 50)
+  });
+
+  const cells = page.locator('.jp-ResourceMonitor-gridCell');
+  await expect(cells).toHaveCount(9, { timeout: 30000 });
+
+  const cell = await cells.first().boundingBox();
+  expect(cell!.width).toEqual(cell!.height);
+  expect(cell!.width).toBeCloseTo(4, 1);
+
+  const box = await page.locator('.jp-ResourceMonitor-grid').boundingBox();
+  expect(box!.width).toEqual(box!.height);
+  expect(box!.width).toBeCloseTo(14, 0);
 });
 
 test('grid mode falls back to the bar when there are no cores to draw', async ({

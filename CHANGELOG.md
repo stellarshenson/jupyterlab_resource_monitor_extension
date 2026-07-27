@@ -2,13 +2,21 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.30] - 2026-07-27
+
+Test hardening only. No functional change to the extension.
+
+### Changed
+
+- Three guards over the `grid` mode could not fail under the mutations they exist to catch: the hot cell's colour was pinned only as different from a cool one, so repainting the burn in the warn palette passed; the "CPU never wears the memory item's warn or danger styling" assertion ran against a snapshot where no item could be under pressure; and every geometry assertion ran at 4x4, the one grid edge that divides into whole pixels regardless of the cell cap. All three now fail under those mutations, and a 3x3 case covers the middle edge
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.29] - 2026-07-27
 
 ### Fixed
 
 - The `grid` CPU display mode drew its cells with a 1px gap between them, so the status bar background showed through and a machine with every core busy rendered a lattice rather than the solid square the mode exists to show. The cells now tile the square edge to edge, and the box grows from 13px to 14px so the 12px left to the cells still divides exactly at every size the grid draws: 6px cells at 2x2, 4px at 3x3, 3px at 4x4
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.27] - 2026-07-26
 

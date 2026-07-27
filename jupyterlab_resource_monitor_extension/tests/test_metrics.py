@@ -464,7 +464,7 @@ def test_the_cells_keep_core_order_however_the_cpuset_is_written(tmp_path):
     stat = proc_stat(100, extra="cpu8 100 0 100 800 100 0 0 0 0 0\n")
     busy = stat.replace("cpu8 100 0 100 800 100", "cpu8 200 0 100 900 100")
 
-    def cells(spelling):
+    def readings(spelling):
         sampler = make_sampler(
             tmp_path,
             cgroup_files=cpuset(spelling),
@@ -474,10 +474,11 @@ def test_the_cells_keep_core_order_however_the_cpuset_is_written(tmp_path):
         (tmp_path / "proc" / "stat").write_text(busy)
         return per_core(sampler)
 
-    # cpu8 is the only busy core and the highest id, so it belongs in the last
-    # cell either way - it lands in the first one if the spelling wins
-    assert cells([0, 1, 2, 3, 8]) == [0.0, 0.0, 0.0, 0.0, 50.0]
-    assert cells([8, 0, 1, 2, 3]) == [0.0, 0.0, 0.0, 0.0, 50.0]
+    # cpu8 is the only busy core and the highest id, so it belongs last in the
+    # list - and so in the last bucket, wherever SPREAD then draws that bucket.
+    # If the spelling wins it lands first instead, which is a different cell.
+    assert readings([0, 1, 2, 3, 8]) == [0.0, 0.0, 0.0, 0.0, 50.0]
+    assert readings([8, 0, 1, 2, 3]) == [0.0, 0.0, 0.0, 0.0, 50.0]
 
 
 def test_per_core_is_none_under_a_quota_with_no_cpuset(tmp_path, monkeypatch):
