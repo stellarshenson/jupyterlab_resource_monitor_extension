@@ -455,6 +455,31 @@ def test_per_core_holds_position_when_a_core_disappears(tmp_path):
     assert percents[2] == 0.0
 
 
+def test_the_cells_keep_core_order_however_the_cpuset_is_written(tmp_path):
+    # Cell k covers a contiguous slice of this list, so the list's order IS the
+    # core-to-cell map. The same cores spelled in another order must produce the
+    # same list: a cpuset rewritten as "8,0-3" assigns nothing new, and if the
+    # cores followed the spelling every one of them would jump to a different
+    # cell under a user watching the grid.
+    stat = proc_stat(100, extra="cpu8 100 0 100 800 100 0 0 0 0 0\n")
+    busy = stat.replace("cpu8 100 0 100 800 100", "cpu8 200 0 100 900 100")
+
+    def cells(spelling):
+        sampler = make_sampler(
+            tmp_path,
+            cgroup_files=cpuset(spelling),
+            proc_files={"stat": stat},
+        )
+        per_core(sampler)  # baseline
+        (tmp_path / "proc" / "stat").write_text(busy)
+        return per_core(sampler)
+
+    # cpu8 is the only busy core and the highest id, so it belongs in the last
+    # cell either way - it lands in the first one if the spelling wins
+    assert cells([0, 1, 2, 3, 8]) == [0.0, 0.0, 0.0, 0.0, 50.0]
+    assert cells([8, 0, 1, 2, 3]) == [0.0, 0.0, 0.0, 0.0, 50.0]
+
+
 def test_per_core_is_none_under_a_quota_with_no_cpuset(tmp_path, monkeypatch):
     # --cpus=2 without --cpuset-cpus: the threads float across every host cpu,
     # so /proc/stat per-core figures are the machine's work, not this server's
