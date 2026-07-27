@@ -127,7 +127,7 @@ describe('format', () => {
     });
 
     it('caps the edge so cells never go sub-pixel', () => {
-      // 5x5 in a 13px box would be under 2px a cell
+      // 5x5 in the 12px of cells a 14px box holds would be 2.4px each
       expect(gridSize(25)).toEqual(4);
       expect(gridSize(64)).toEqual(4);
     });

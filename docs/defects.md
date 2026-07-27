@@ -171,6 +171,9 @@
 - [x] `DEF-47` **kernelPanelState failure branch was dead code** - the extracted kernelPanelState carried an unreachable failure branch and an 'unavailable' state member, with a green jest case covering it; cause: the panel was changed to count failures itself against shouldHideOnFailure but still passed a literal failures: 0, so the branch never ran; fix: dropped the failures option, the branch, the union member and the jest case, leaving one degradation policy; `src/state.ts`
   - 2026-07-25 reported: found by architect adversarial review round 2
   - 2026-07-25 fixed: failures option, branch, union member and jest case removed; jest 74 green, state.ts still 100% (v1.0.23)
+- [x] `DEF-60` **grid cells read as separated points rather than a filled square** - LOW; user-reported. `.jp-ResourceMonitor-grid` carried `gap: 1px`, so the status bar background showed through between every cell and a fully loaded machine drew a lattice rather than a lit square - the mode's whole point, a solid block at saturation, was unreachable; cause: the 13px box was sized around the gaps (`11px = 2*5+1 = 3*3+2 = 4*2+3`), so the separation was load-bearing arithmetic rather than decoration; fix: `gap` dropped and the box resized to 14px, leaving 12px of cells that divides exactly at 2x2, 3x3 and 4x4; `style/base.css`
+  - 2026-07-27 reported: 'the grid must not show points with border between them - they must fill the space, such that when all cores are used the grid is fully lit'
+  - 2026-07-27 fixed: gap removed, box 13px -> 14px so 12px of cells divides exactly at every grid size; Galata asserts the seam between adjacent cells is 0 across and down, mutation-verified against both a gap that shrinks the cells and one that keeps them 3px. jest 103, pytest 60, Galata 5/5
 
 ## Lifecycle and packaging
 

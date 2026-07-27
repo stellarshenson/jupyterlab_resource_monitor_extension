@@ -2,6 +2,14 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.29] - 2026-07-27
+
+### Fixed
+
+- The `grid` CPU display mode drew its cells with a 1px gap between them, so the status bar background showed through and a machine with every core busy rendered a lattice rather than the solid square the mode exists to show. The cells now tile the square edge to edge, and the box grows from 13px to 14px so the 12px left to the cells still divides exactly at every size the grid draws: 6px cells at 2x2, 4px at 3x3, 3px at 4x4
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.27] - 2026-07-26
 
 ### Added
@@ -15,8 +23,6 @@
 - A CPU quota wider than the cores it may run on widened the denominator past them, so a container given `CPUQuota=400%` on two cores reported 50% while both were saturated. The ceiling and the core set are now resolved as one value and cannot disagree
 - An unreadable or non-UTF-8 `/proc/stat` aborted the whole sample rather than only the CPU part of it, so the status bar hid the memory reading too
 - The status bar's fixed-size grid and bar compressed along one axis on a crowded status bar, rendering the square grid as a rectangle
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.25] - 2026-07-25
 

@@ -60,27 +60,26 @@
 .jp-ResourceMonitor-grid {
   display: grid;
 
-  /* The gaps are the only separation between cells - the status bar background
-     shows through them, so no internal rules are drawn. */
-  gap: 1px;
-
   /* Same reason as the bar: the item is a flex container, so a trailing space
      in the label would be trimmed and the gap has to be a margin. */
   margin-left: 5px;
 
-  /* Square, in pixels rather than inherited from line-height. 13px with a 1px
-     border and 1px gaps divides exactly at every size the grid uses: 5px cells
-     at 2x2, 3px at 3x3, 2px at 4x4 - no sub-pixel cells anywhere. The column
-     count is set inline; rows follow it so the cells stay square. */
-  width: 13px;
-  height: 13px;
+  /* Square, in pixels rather than inherited from line-height. The cells tile it
+     edge to edge - no gap, so every core busy lights the square as one solid
+     block rather than a lattice, and a cell is told from its neighbour by its
+     own opacity. 14px with a 1px border leaves 12px of cells, which divides
+     exactly at every size the grid uses: 6px cells at 2x2, 4px at 3x3, 3px at
+     4x4 - no sub-pixel cells anywhere. The column count is set inline; rows
+     follow it so the cells stay square. */
+  width: 14px;
+  height: 14px;
   box-sizing: border-box;
   border: 1px solid currentcolor;
   grid-auto-rows: 1fr;
 
   /* Square is a promise, and flex-shrink: 1 breaks it. As a flex item in a
      crowded status bar this compresses horizontally - min-width: auto resolves
-     through the 1fr tracks to zero, so nothing stops it - while height: 13px
+     through the 1fr tracks to zero, so nothing stops it - while height: 14px
      holds, and the square renders as a rectangle. */
   flex: none;
 }

@@ -145,12 +145,16 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
 - [x] **Grid: cells are the cores** - in `grid` mode the item draws a square whose cells each average a contiguous slice of the cores assigned to this server, so an evenly busy machine and a few pinned cores are distinguishable at the same aggregate percentage - the one thing a single number cannot show
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: per-core sampling in `metrics.py`, bucketing in `cpuGridCells`; live-verified with 16 of 64 cores pinned by `taskset`, 4 cells fully lit and the rest at 0.04-0.11 (v1.0.26)
-- [x] **Grid: no more cells than cores** - the edge is `floor(sqrt(cores))`, capped at 4, so the square never claims more cores than exist and never draws a cell under 2px; a machine too small to divide collapses to a single cell
+- [x] **Grid: no more cells than cores** - the edge is `floor(sqrt(cores))`, capped at 4, so the square never claims more cores than exist and never draws a cell under 3px; a machine too small to divide collapses to a single cell
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: `gridSize`, 5 jest cases across 1, 2, 4, 8, 9, 16, 25 and 64 cores; browser-measured 13x13 box with 2x2 cells at 4x4 (v1.0.26)
+  - log: 2026-07-27 floor raised from 2px to 3px: dropping the gaps left the whole 12px content box to the cells, so 4x4 divides into 3px rather than 2px; the cap itself is unchanged, 5x5 would still be 2.4px
 - [x] **Grid: square, and square cells** - the box is equal width and height in pixels and each cell likewise, asserted in a real browser rather than inferred from the CSS
   - log: 2026-07-25 added after review found no tier asserted a computed style, leaving the whole geometry untested
   - log: 2026-07-25 closed: Galata `cpugrid.spec.ts` measures the box and a cell with `boundingBox()` against a mocked 16-core snapshot; mutation-verified - shipping a 40x13 box fails it with `Expected: 13, Received: 40` (v1.0.27)
+- [x] **Grid: cells tile the square** - the cells sit edge to edge with no gap between them, so a machine with every core busy lights the grid as one solid block rather than a lattice, and a cell is told from its neighbour by its own opacity alone
+  - log: 2026-07-27 added after the user reported the cells reading as separated points rather than a filled square (DEF-60)
+  - log: 2026-07-27 closed: `gap` dropped and the box resized 13px to 14px, so the 12px left to the cells still divides exactly at every size the grid draws; Galata measures the seam between adjacent cells across and down. Mutation-verified twice, because the two failures are not the same one: reinstating `gap: 1px` shrinks the cells to 2.25px and fails the 3px floor, while a seam that keeps the cells 3px passes every earlier assertion and fails only the adjacency one, `Expected: 0, Received: 1`
 - [x] **Grid: cells never borrow the alarm vocabulary** - grid cells take the item's own foreground and the CPU item never gains the warn or danger class, so DEF-8 and DEF-17 cannot return through the new CSS
   - log: 2026-07-25 added
   - log: 2026-07-25 closed: the Galata test asserts a cool cell's computed `background-color` equals the item's computed `color`, that a hot cell differs from a cool one, and that neither pressure class is present (v1.0.27)

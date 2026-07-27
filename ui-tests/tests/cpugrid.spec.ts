@@ -92,18 +92,31 @@ test('grid mode renders a square of square cells', async ({ page }) => {
   });
 
   // Square, in both senses: the box is as tall as it is wide, and it is the
-  // 13px the cell arithmetic depends on.
+  // 14px the cell arithmetic depends on.
   const box = await grid.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toEqual(box!.height);
-  expect(box!.width).toBeCloseTo(13, 0);
+  expect(box!.width).toBeCloseTo(14, 0);
 
   // Each cell square and above the sub-pixel floor. Dropping the inline column
   // count lays them out as one row; dropping `grid-auto-rows: 1fr` makes them
   // non-square. Both are invisible to jsdom.
   const cell = await cells.first().boundingBox();
   expect(cell!.width).toEqual(cell!.height);
-  expect(cell!.width).toBeGreaterThanOrEqual(2);
+  expect(cell!.width).toBeGreaterThanOrEqual(3);
+
+  // The cells tile the square edge to edge, so every core busy lights it as one
+  // solid block rather than a lattice. Nothing above can see a seam: reinstating
+  // a 1px gap keeps the box 14px and the cells square, only smaller.
+  const seams = await page.evaluate(() => {
+    const r = Array.from(
+      document.querySelectorAll('.jp-ResourceMonitor-gridCell')
+    ).map(c => c.getBoundingClientRect());
+    // cell 1 sits beside cell 0, cell 4 directly below it in a 4x4
+    return { across: r[1].left - r[0].right, down: r[4].top - r[0].bottom };
+  });
+  expect(seams.across).toBeCloseTo(0, 1);
+  expect(seams.down).toBeCloseTo(0, 1);
 
   const rendered = await page.evaluate(() => {
     const item = document.querySelector('.jp-ResourceMonitor-cpu')!;
@@ -184,7 +197,7 @@ test('the grid keeps its shape when the status bar runs out of room', async ({
 }) => {
   // The user-reported rectangle. The grid is a flex item, and at the default
   // flex-shrink: 1 a crowded status bar compresses it horizontally while
-  // height: 13px holds - min-width: auto resolves through the 1fr tracks to
+  // height: 14px holds - min-width: auto resolves through the 1fr tracks to
   // zero, so nothing stops it collapsing. Squeezing the item below its content
   // width reproduces that pressure deterministically.
   await mockMetrics(page, {
@@ -200,5 +213,5 @@ test('the grid keeps its shape when the status bar runs out of room', async ({
   const squeezed = await squeezeAndMeasure(page, '.jp-ResourceMonitor-grid');
 
   expect(squeezed.w).toEqual(squeezed.h);
-  expect(squeezed.w).toBeCloseTo(13, 0);
+  expect(squeezed.w).toBeCloseTo(14, 0);
 });

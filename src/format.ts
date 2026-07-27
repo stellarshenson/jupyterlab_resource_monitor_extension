@@ -88,9 +88,9 @@ export function cpuFraction(percent: number): number {
 }
 
 /**
- * Largest grid edge. Above this the cells go sub-pixel: the box is 13px with a
- * 1px border and 1px gaps, which divides exactly into 5px cells at 2x2, 3px at
- * 3x3 and 2px at 4x4.
+ * Largest grid edge. Above this the cells go sub-pixel: the box is 14px with a
+ * 1px border and no gaps, so 12px of cells divides exactly into 6px at 2x2, 4px
+ * at 3x3 and 3px at 4x4 - but only 2.4px at 5x5.
  */
 const GRID_MAX = 4;
 
