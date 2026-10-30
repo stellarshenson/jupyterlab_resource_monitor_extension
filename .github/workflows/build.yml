@@ -20,9 +20,11 @@ jobs:
 
     - name: Base Setup
       uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
+      with:
+        python_version: '3.13'
 
     - name: Install dependencies
-      run: python -m pip install -U "jupyterlab>=4.0.0,<5"
+      run: python -m pip install -U "jupyterlab>=4.6,<5"
 
     - name: Lint the extension
       run: |
@@ -48,6 +50,11 @@ jobs:
         jupyter labextension list 2>&1 | grep -ie "jupyterlab_resource_monitor_extension.*OK"
         python -m jupyterlab.browser_check
 
+    - name: Check that all endpoints are authenticated
+      run: |
+        set -eux
+        python .github/scripts/check_auth.py
+
     - name: Package the extension
       run: |
         set -eux
@@ -71,7 +78,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.13'
         architecture: 'x64'
     - uses: actions/download-artifact@v4
       with:
@@ -83,7 +90,7 @@ jobs:
         sudo rm -rf $(which node)
         sudo rm -rf $(which node)
 
-        pip install "jupyterlab>=4.0.0,<5" jupyterlab_resource_monitor_extension*.whl
+        pip install "jupyterlab>=4.6,<5" jupyterlab_resource_monitor_extension*.whl
 
 
         jupyter server extension list
@@ -107,6 +114,8 @@ jobs:
 
     - name: Base Setup
       uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
+      with:
+        python_version: '3.13'
 
     - name: Download extension package
       uses: actions/download-artifact@v4
@@ -116,7 +125,7 @@ jobs:
     - name: Install the extension
       run: |
         set -eux
-        python -m pip install "jupyterlab>=4.0.0,<5" jupyterlab_resource_monitor_extension*.whl
+        python -m pip install "jupyterlab>=4.6,<5" jupyterlab_resource_monitor_extension*.whl
 
     - name: Install dependencies
       working-directory: ui-tests
@@ -159,6 +168,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
+        with:
+          python_version: '3.13'
       - uses: jupyterlab/maintainer-tools/.github/actions/check-links@v1
         with:
           # npm and pepy 403 automated checkers permanently. The pypi.org

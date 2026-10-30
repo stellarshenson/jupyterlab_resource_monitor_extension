@@ -135,3 +135,6 @@ junit.xml
 # build/run logs and accidental uv lockfile
 logs/
 uv.lock
+
+# Run output
+tmp/

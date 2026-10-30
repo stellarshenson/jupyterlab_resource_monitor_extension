@@ -1,11 +1,12 @@
 [build-system]
-requires = ["hatchling>=1.5.0", "hatch-nodejs-version>=0.3.2", "jupyter-builder>=1.0.0,<2"]
+requires = ["hatchling>=1.5.0", "hatch-nodejs-version>=0.3.2", "jupyter-builder>=1.2.0,<2"]
 build-backend = "hatchling.build"
 
 [project]
 name = "jupyterlab_resource_monitor_extension"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [
     "Framework :: Jupyter",
@@ -13,7 +14,6 @@ classifiers = [
     "Framework :: Jupyter :: JupyterLab :: 4",
     "Framework :: Jupyter :: JupyterLab :: Extensions",
     "Framework :: Jupyter :: JupyterLab :: Extensions :: Prebuilt",
-    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -24,21 +24,21 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "jupyter_server>=2.4.0,<3"
+    "jupyter_server>=2.21,<3"
 ]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 
 [project.optional-dependencies]
 dev = [
-    "jupyterlab>=4",
-    "jupyter-builder>=1.0.0,<2",
+    "jupyterlab>=4.6,<5",
+    "jupyter-builder>=1.2.0,<2",
 ]
 test = [
     "coverage",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "pytest-jupyter[server]>=0.6.0"
+    "pytest-jupyter[server]>=0.11,<1"
 ]
 
 [tool.hatch.version]
@@ -83,7 +83,7 @@ version_cmd = "hatch version"
 
 [tool.jupyter-releaser.hooks]
 before-build-npm = [
-    "python -m pip install 'jupyter-builder>=1.0.0,<2'",
+    "python -m pip install 'jupyter-builder>=1.2.0,<2'",
     "jlpm",
     "jlpm build:prod"
 ]

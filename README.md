@@ -44,7 +44,7 @@ Hovering either status bar item shows the full detail regardless of these settin
 
 ## Requirements
 
-- JupyterLab >= 4.0.0
+- JupyterLab >= 4.6.0
 - Linux host - the sampler reads cgroup v2 and `/proc`; on macOS and Windows no reading is available, so the status bar items stay hidden and the kernel panel reports `Measuring...`
 
 ## Install

@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v4.6.2
+_commit: v4.6.5
 _src_path: https://github.com/jupyterlab/extension-template
 advanced: false
 author_email: konrad.jelen+github@gmail.com
@@ -9,8 +9,8 @@ has_binder: false
 has_settings: false
 kind: frontend-and-server
 labextension_name: jupyterlab_resource_monitor_extension
-project_short_description: JupyterLab extension replacing jupyter-resource-usage
-    with a less intrusive, better implementation of resource usage monitoring
+project_short_description: JupyterLab extension replacing jupyter-resource-usage with
+    a less intrusive, better implementation of resource usage monitoring
 python_name: jupyterlab_resource_monitor_extension
 repository: https://github.com/stellarshenson/jupyterlab_resource_monitor_extension
 test: true

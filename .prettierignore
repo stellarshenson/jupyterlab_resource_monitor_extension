@@ -6,3 +6,5 @@ node_modules
 jupyterlab_resource_monitor_extension
 eslint.config.mjs
 .venv
+.claude
+.agents
