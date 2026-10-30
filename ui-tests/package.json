@@ -1,7 +1,7 @@
 {
-  "name": "jupyterlab_resource_monitor_extension-ui-tests",
+  "name": "@stellarshenson/jupyterlab-resource-monitor-extension-ui-tests",
   "version": "1.0.0",
-  "description": "JupyterLab jupyterlab_resource_monitor_extension Integration Tests",
+  "description": "JupyterLab @stellarshenson/jupyterlab-resource-monitor-extension Integration Tests",
   "private": true,
   "scripts": {
     "start": "jupyter lab --config jupyter_server_test_config.py",

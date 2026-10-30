@@ -52,8 +52,8 @@ artifacts = ["jupyterlab_resource_monitor_extension/labextension"]
 exclude = [".github", "binder", ".claude"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"jupyterlab_resource_monitor_extension/labextension" = "share/jupyter/labextensions/jupyterlab_resource_monitor_extension"
-"install.json" = "share/jupyter/labextensions/jupyterlab_resource_monitor_extension/install.json"
+"jupyterlab_resource_monitor_extension/labextension" = "share/jupyter/labextensions/@stellarshenson/jupyterlab-resource-monitor-extension"
+"install.json" = "share/jupyter/labextensions/@stellarshenson/jupyterlab-resource-monitor-extension/install.json"
 "jupyter-config/server-config" = "etc/jupyter/jupyter_server_config.d"
 
 [tool.hatch.build.hooks.version]

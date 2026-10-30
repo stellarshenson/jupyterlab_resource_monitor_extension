@@ -14,7 +14,9 @@ import { expect, galata, test } from '@jupyterlab/galata';
 test.use({
   mockSettings: {
     ...galata.DEFAULT_SETTINGS,
-    'jupyterlab_resource_monitor_extension:plugin': { cpuMode: 'grid' }
+    '@stellarshenson/jupyterlab-resource-monitor-extension:plugin': {
+      cpuMode: 'grid'
+    }
   }
 });
 

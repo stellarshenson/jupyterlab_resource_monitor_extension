@@ -19,7 +19,7 @@ test('should emit an activation console message', async ({ page }) => {
     logs.filter(
       s =>
         s ===
-        'JupyterLab extension jupyterlab_resource_monitor_extension is activated!'
+        'JupyterLab extension @stellarshenson/jupyterlab-resource-monitor-extension is activated!'
     )
   ).toHaveLength(1);
 });

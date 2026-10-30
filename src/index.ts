@@ -59,10 +59,11 @@ interface IMetricsSnapshot {
  * The settings-carrying plugin id. Both plugins read this one schema, so it is
  * named once rather than reached for through the other plugin object.
  */
-const PLUGIN_ID = 'jupyterlab_resource_monitor_extension:plugin';
+const PLUGIN_ID =
+  '@stellarshenson/jupyterlab-resource-monitor-extension:plugin';
 
 /**
- * Initialization data for the jupyterlab_resource_monitor_extension extension.
+ * Initialization data for the @stellarshenson/jupyterlab-resource-monitor-extension extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
   id: PLUGIN_ID,
@@ -76,7 +77,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     settingRegistry: ISettingRegistry | null
   ) => {
     console.log(
-      'JupyterLab extension jupyterlab_resource_monitor_extension is activated!'
+      'JupyterLab extension @stellarshenson/jupyterlab-resource-monitor-extension is activated!'
     );
 
     if (!statusBar) {
@@ -285,7 +286,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
  * simply never activates.
  */
 const kernelUsagePlugin: JupyterFrontEndPlugin<void> = {
-  id: 'jupyterlab_resource_monitor_extension:kernel-usage',
+  id: '@stellarshenson/jupyterlab-resource-monitor-extension:kernel-usage',
   description: "Sidebar panel showing the current notebook kernel's usage",
   autoStart: true,
   requires: [INotebookTracker],

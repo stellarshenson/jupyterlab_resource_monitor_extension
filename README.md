@@ -1,7 +1,7 @@
 # jupyterlab_resource_monitor_extension
 
 [![GitHub Actions](https://github.com/stellarshenson/jupyterlab_resource_monitor_extension/actions/workflows/build.yml/badge.svg)](https://github.com/stellarshenson/jupyterlab_resource_monitor_extension/actions/workflows/build.yml)
-[![npm version](https://img.shields.io/npm/v/jupyterlab_resource_monitor_extension.svg)](https://www.npmjs.com/package/jupyterlab_resource_monitor_extension)
+[![npm version](https://img.shields.io/npm/v/@stellarshenson/jupyterlab-resource-monitor-extension.svg)](https://www.npmjs.com/package/@stellarshenson/jupyterlab-resource-monitor-extension)
 [![PyPI version](https://img.shields.io/pypi/v/jupyterlab-resource-monitor-extension.svg)](https://pypi.org/project/jupyterlab-resource-monitor-extension/)
 [![Total PyPI downloads](https://static.pepy.tech/badge/jupyterlab-resource-monitor-extension)](https://pepy.tech/project/jupyterlab-resource-monitor-extension)
 [![JupyterLab 4](https://img.shields.io/badge/JupyterLab-4-orange.svg)](https://jupyterlab.readthedocs.io/en/stable/)
@@ -11,7 +11,7 @@
 JupyterLab extension that replaces `jupyter-resource-usage` with a less intrusive and better implementation of resource usage monitoring.
 
 This extension is composed of a Python package named `jupyterlab_resource_monitor_extension`
-for the server extension and a NPM package named `jupyterlab_resource_monitor_extension`
+for the server extension and a NPM package named `@stellarshenson/jupyterlab-resource-monitor-extension`
 for the frontend extension.
 
 ## Features
