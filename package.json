@@ -1,6 +1,6 @@
 {
     "name": "@stellarshenson/jupyterlab-resource-monitor-extension",
-    "version": "1.0.33",
+    "version": "1.0.34",
     "description": "JupyterLab extension replacing jupyter-resource-usage with a less intrusive, better implementation of resource usage monitoring",
     "keywords": [
         "jupyter",
