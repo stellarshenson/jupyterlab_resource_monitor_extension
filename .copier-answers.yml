@@ -6,7 +6,7 @@ author_email: konrad.jelen+github@gmail.com
 author_name: Stellars Henson
 has_ai_rules: false
 has_binder: false
-has_settings: false
+has_settings: true
 kind: frontend-and-server
 labextension_name: '@stellarshenson/jupyterlab-resource-monitor-extension'
 project_short_description: JupyterLab extension replacing jupyter-resource-usage with
