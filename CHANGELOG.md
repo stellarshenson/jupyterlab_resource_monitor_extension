@@ -2,6 +2,17 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.32] - 2026-10-31
+
+### Changed
+
+- Ignore YouTube in the link check
+- Upgrade to extension template v4.6.5 and Makefile 1.46
+
+### Fixed
+
+- Take the scoped @stellarshenson/jupyterlab-resource-monitor-extension npm name
+
 ## [1.0.30] - 2026-07-27
 
 Test hardening only. No functional change to the extension.
