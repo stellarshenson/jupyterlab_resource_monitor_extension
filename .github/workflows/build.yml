@@ -172,8 +172,9 @@ jobs:
           python_version: '3.13'
       - uses: jupyterlab/maintainer-tools/.github/actions/check-links@v1
         with:
-          # npm and pepy 403 automated checkers permanently. The pypi.org
-          # pattern is temporal, not permanent - PyPI serves checkers fine and
-          # only 404s until the first release, so TODO(post-release): drop it,
-          # or a genuinely dead PyPI link passes CI silently forever.
-          ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.* https://pypi.org/project/.*"
+          # npm and pepy 403 automated checkers permanently. YouTube answers
+          # GitHub runner IPs with 429, which says nothing about the link. The
+          # pypi.org pattern is temporal, not permanent - PyPI serves checkers
+          # fine and only 404s until the first release, so TODO(post-release):
+          # drop it, or a genuinely dead PyPI link passes CI silently forever.
+          ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.* https://pypi.org/project/.* https://www.youtube.com/.*"
