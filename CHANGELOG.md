@@ -2,6 +2,14 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.36] - 2026-11-12
+
+### Fixed
+
+- The memory and CPU status bar items changed width as their values changed, so every status bar item to their right - the audio controls beside them - moved left and right on each poll. Each numeric run now renders right-aligned in a box reserved to the width of the widest reading its mode can print: the memory total for the used value, `100` for the percentage, and the core count's own hundreds in aggregate mode. The reservation is measured from a hidden copy of that reading in the item's own font, so a theme font whose digits do not match the default `ch` advance cannot outgrow it, and a value that loses a digit leaves the item's width and its neighbours unchanged
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.35] - 2026-10-31
 
 ### Changed
@@ -32,8 +40,6 @@ Test hardening only. No functional change to the extension.
 ### Changed
 
 - Three guards over the `grid` mode could not fail under the mutations they exist to catch: the hot cell's colour was pinned only as different from a cool one, so repainting the burn in the warn palette passed; the "CPU never wears the memory item's warn or danger styling" assertion ran against a snapshot where no item could be under pressure; and every geometry assertion ran at 4x4, the one grid edge that divides into whole pixels regardless of the cell cap. All three now fail under those mutations, and a 3x3 case covers the middle edge
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.29] - 2026-07-27
 

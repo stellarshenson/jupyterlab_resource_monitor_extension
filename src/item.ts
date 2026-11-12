@@ -2,7 +2,7 @@ import { ISignal, Signal } from '@lumino/signaling';
 
 import { Widget } from '@lumino/widgets';
 
-import { GRID_HOT, MemLevel } from './format';
+import { GRID_HOT, MemLevel, TextRun } from './format';
 
 /**
  * A plain-text status bar item that carries a memory-pressure level, and can
@@ -51,6 +51,32 @@ export class ResourceItem extends Widget {
 
   set text(value: string) {
     this._reset(value);
+  }
+
+  /**
+   * Replace the item's contents with runs of status text, drawing each value
+   * run in a box as wide as its reserved string in the item's own font.
+   *
+   * The reservation is a hidden copy of that string inside the box, so the
+   * browser measures the font actually in use rather than a `ch` assumption.
+   * The status bar is one row, so a value that loses a digit must not narrow
+   * the item and move every item to its right.
+   */
+  set reading(runs: TextRun[]) {
+    this._reset('');
+    for (const run of runs) {
+      if (typeof run === 'string') {
+        this.node.appendChild(document.createTextNode(run));
+      } else {
+        const box = document.createElement('span');
+        box.className = 'jp-ResourceMonitor-value';
+        box.dataset.reserve = run.reserve;
+        const value = document.createElement('span');
+        value.textContent = run.value;
+        box.appendChild(value);
+        this.node.appendChild(box);
+      }
+    }
   }
 
   /**

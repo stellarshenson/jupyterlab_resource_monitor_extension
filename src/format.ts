@@ -35,22 +35,40 @@ function valueInUnit(bytes: number, unit: string): string {
 }
 
 /**
- * Format the memory status text as `Mem: <used> / <total> <unit> (NN%)`.
+ * A run of status text. A run carrying a reserve is a number to draw in a box
+ * as wide as the reserved string rendered in the item's own font; the value box
+ * holds a hidden copy of that string, so the browser measures the widest
+ * reading rather than assuming a digit's advance, and the item keeps its width
+ * as the value changes and the status bar items beside it never move.
+ */
+export type TextRun = string | { value: string; reserve: string };
+
+/**
+ * Format the memory status text as `Mem: <used> / <total> <unit> (NN%)`, as
+ * runs to render.
  *
- * Used is expressed in the same unit as the total. The text is flush - single
- * spacing, no reserved-width padding - so the rendered width tracks the value.
- * The percentage suffix is included only when `percent` is a number; pass
- * `null` to omit it (the show-percentage setting is off).
+ * Used is expressed in the same unit as the total. The used value is held to
+ * the total's width, which is its ceiling, and the percentage to three digits,
+ * so a reading that loses a digit does not narrow the item. The percentage run
+ * is included only when `percent` is a number; pass `null` to omit it (the
+ * show-percentage setting is off).
  */
 export function formatMemoryText(
   usedBytes: number,
   totalBytes: number,
   percent: number | null
-): string {
+): TextRun[] {
   const [totalValue, unit] = formatBytes(totalBytes).split(' ');
-  const used = valueInUnit(usedBytes, unit);
-  const pct = percent === null ? '' : ` (${Math.round(percent)}%)`;
-  return `Mem: ${used} / ${totalValue} ${unit}${pct}`;
+  // shortcut: used is assumed <= total; an over-limit cgroup prints one digit wider and the box grows until reclaim
+  const used: TextRun = {
+    value: valueInUnit(usedBytes, unit),
+    reserve: totalValue
+  };
+  const pct: TextRun[] =
+    percent === null
+      ? []
+      : [' (', { value: `${Math.round(percent)}`, reserve: '100' }, '%)'];
+  return ['Mem: ', used, ` / ${totalValue} ${unit}`, ...pct];
 }
 
 /**
@@ -65,18 +83,24 @@ export function formatMemoryText(
 export type CpuMode = 'normalised' | 'aggregate' | 'bar' | 'grid';
 
 /**
- * Format the CPU status text as `CPU: <n>%`, flush with no reserved width.
+ * Format the CPU status text as `CPU: <n>%`, as runs to render.
  *
- * In `aggregate` mode the normalised percentage is multiplied back out by the
- * core count, so a fully busy 8-core box reads `800%` as `top` would report it.
+ * The number is held to the widest reading the mode can print: three digits
+ * for a normalised share, or the core count's own hundreds in `aggregate` mode,
+ * where the reading is multiplied back out by the core count.
  */
 export function formatCpuText(
   percent: number,
   mode: CpuMode = 'normalised',
   cpuCount = 1
-): string {
+): TextRun[] {
   const value = mode === 'aggregate' ? percent * cpuCount : percent;
-  return `CPU: ${Math.round(value)}%`;
+  const widest = mode === 'aggregate' ? cpuCount * 100 : 100;
+  const reading: TextRun = {
+    value: `${Math.round(value)}`,
+    reserve: `${Math.round(widest)}`
+  };
+  return ['CPU: ', reading, '%'];
 }
 
 /**

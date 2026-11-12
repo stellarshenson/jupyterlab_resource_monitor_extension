@@ -10,15 +10,36 @@
   padding: 0 6px;
   font-size: var(--jp-ui-font-size1);
   color: var(--jp-ui-font-color1);
-  white-space: nowrap;
 
-  /* Fixed-width digits, so a value keeps its width as digits change (e.g. 11 ->
-     99) even though the text is otherwise flush and its overall width tracks
-     the value. */
+  /* The item is built from several runs, and nowrap would collapse or trim the
+     spaces at their boundaries - pre preserves them. */
+  white-space: pre;
+
+  /* Fixed-width digits within the font, so a digit change (e.g. 11 -> 99) draws
+     no wider; the reserved width itself comes from a hidden copy of the
+     reservation rendered in this same font, not from a ch assumption. */
   font-variant-numeric: tabular-nums;
 
   /* Ease the tint in/out as a calm wash rather than a hard cut. */
   transition: background-color 240ms ease;
+}
+
+/* Right-aligned so a short reading hugs the unit or sign that follows it. */
+.jp-ResourceMonitor-value {
+  display: inline-grid;
+  text-align: right;
+}
+
+/* shortcut: a font without tabular figures can let a wider digit outgrow the
+   reserved string; measure the widest digit at runtime if one is ever reported */
+.jp-ResourceMonitor-value::before {
+  content: attr(data-reserve);
+  visibility: hidden;
+  grid-area: 1 / 1;
+}
+
+.jp-ResourceMonitor-value > span {
+  grid-area: 1 / 1;
 }
 
 /* The CPU bar: an outlined column filled from the bottom, full only when every

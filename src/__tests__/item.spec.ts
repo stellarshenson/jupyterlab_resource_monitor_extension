@@ -51,6 +51,32 @@ describe('ResourceItem', () => {
     });
   });
 
+  describe('reading', () => {
+    it('renders the runs as their text', () => {
+      const item = new ResourceItem('cpu');
+      item.reading = ['CPU: ', { value: '8', reserve: '100' }, '%'];
+      expect(item.node.textContent).toEqual('CPU: 8%');
+    });
+
+    it('holds each value run in a box of the reserved width', () => {
+      const item = new ResourceItem('cpu');
+      item.reading = ['CPU: ', { value: '8', reserve: '100' }, '%'];
+      const box = item.node.querySelector(
+        '.jp-ResourceMonitor-value'
+      ) as HTMLElement;
+      expect(box.textContent).toEqual('8');
+      expect(box.dataset.reserve).toEqual('100');
+    });
+
+    it('replaces a grid rather than appending to it', () => {
+      const item = new ResourceItem('cpu');
+      item.setGrid('CPU:', [0.5, 0, 0, 0], 2);
+      item.reading = ['CPU: ', { value: '50', reserve: '100' }, '%'];
+      expect(item.node.querySelector('.jp-ResourceMonitor-grid')).toBeNull();
+      expect(item.node.textContent).toEqual('CPU: 50%');
+    });
+  });
+
   it('carries its kind and an accessible role', () => {
     const item = new ResourceItem('memory');
     expect(item.hasClass('jp-ResourceMonitor-item')).toBe(true);

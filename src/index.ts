@@ -139,7 +139,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const percent = frac * 100;
 
       if (showMemory) {
-        memoryItem.text = formatMemoryText(
+        memoryItem.reading = formatMemoryText(
           used,
           total,
           showMemoryPercent ? percent : null
@@ -169,7 +169,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           // lands here when the server has no attributable cores to draw.
           cpuItem.setBar('CPU:', cpuFraction(snap.cpu.percent));
         } else {
-          cpuItem.text = formatCpuText(
+          cpuItem.reading = formatCpuText(
             snap.cpu.percent,
             cpuMode,
             snap.cpu.cpu_count

@@ -45,62 +45,131 @@ describe('format', () => {
     const MB = 1024 ** 2;
 
     it('expresses used in TB on a terabyte-class node', () => {
-      expect(formatMemoryText(0.5 * TB, 1.5 * TB, 33)).toEqual(
-        'Mem: 0.5 / 1.5 TB (33%)'
-      );
+      expect(formatMemoryText(0.5 * TB, 1.5 * TB, 33)).toEqual([
+        'Mem: ',
+        { value: '0.5', reserve: '1.5' },
+        ' / 1.5 TB',
+        ' (',
+        { value: '33', reserve: '100' },
+        '%)'
+      ]);
     });
 
     it('shows used in the total unit with the percentage', () => {
-      expect(formatMemoryText(3.4 * GB, 15.6 * GB, 22)).toEqual(
-        'Mem: 3.4 / 15.6 GB (22%)'
-      );
+      expect(formatMemoryText(3.4 * GB, 15.6 * GB, 22)).toEqual([
+        'Mem: ',
+        { value: '3.4', reserve: '15.6' },
+        ' / 15.6 GB',
+        ' (',
+        { value: '22', reserve: '100' },
+        '%)'
+      ]);
     });
 
     it('expresses a sub-unit used value in the total unit', () => {
-      expect(formatMemoryText(350 * MB, 16 * GB, 2)).toEqual(
-        'Mem: 0.3 / 16.0 GB (2%)'
-      );
+      expect(formatMemoryText(350 * MB, 16 * GB, 2)).toEqual([
+        'Mem: ',
+        { value: '0.3', reserve: '16.0' },
+        ' / 16.0 GB',
+        ' (',
+        { value: '2', reserve: '100' },
+        '%)'
+      ]);
     });
 
     it('rounds the percentage', () => {
-      expect(formatMemoryText(14.2 * GB, 15.6 * GB, 91.2)).toEqual(
-        'Mem: 14.2 / 15.6 GB (91%)'
-      );
+      expect(formatMemoryText(14.2 * GB, 15.6 * GB, 91.2)).toEqual([
+        'Mem: ',
+        { value: '14.2', reserve: '15.6' },
+        ' / 15.6 GB',
+        ' (',
+        { value: '91', reserve: '100' },
+        '%)'
+      ]);
     });
 
     it('omits the percentage when it is null', () => {
-      expect(formatMemoryText(3.4 * GB, 15.6 * GB, null)).toEqual(
-        'Mem: 3.4 / 15.6 GB'
-      );
+      expect(formatMemoryText(3.4 * GB, 15.6 * GB, null)).toEqual([
+        'Mem: ',
+        { value: '3.4', reserve: '15.6' },
+        ' / 15.6 GB'
+      ]);
     });
 
-    it('renders flush, so the width tracks the value', () => {
+    it('reserves the same widths for a low and a high reading', () => {
+      // 3.4 of 512.0 GB at 1%, against 511.9 of 512.0 GB at 100%: the used
+      // value gains a digit and the percentage gains two, so the boxes are
+      // sized to the total's width and to three percentage digits
       const low = formatMemoryText(3.4 * GB, 512 * GB, 1);
       const high = formatMemoryText(511.9 * GB, 512 * GB, 100);
-      expect(low).toEqual('Mem: 3.4 / 512.0 GB (1%)');
-      expect(high).toEqual('Mem: 511.9 / 512.0 GB (100%)');
-      expect(low.length).not.toEqual(high.length);
+      expect(low).toEqual([
+        'Mem: ',
+        { value: '3.4', reserve: '512.0' },
+        ' / 512.0 GB',
+        ' (',
+        { value: '1', reserve: '100' },
+        '%)'
+      ]);
+      expect(high).toEqual([
+        'Mem: ',
+        { value: '511.9', reserve: '512.0' },
+        ' / 512.0 GB',
+        ' (',
+        { value: '100', reserve: '100' },
+        '%)'
+      ]);
     });
   });
 
   describe('formatCpuText', () => {
     it('rounds to a whole percent', () => {
-      expect(formatCpuText(7.4)).toEqual('CPU: 7%');
+      expect(formatCpuText(7.4)).toEqual([
+        'CPU: ',
+        { value: '7', reserve: '100' },
+        '%'
+      ]);
     });
 
-    it('renders flush across magnitudes', () => {
-      expect(formatCpuText(5)).toEqual('CPU: 5%');
-      expect(formatCpuText(100)).toEqual('CPU: 100%');
+    it('holds its width across magnitudes', () => {
+      expect(formatCpuText(5)).toEqual([
+        'CPU: ',
+        { value: '5', reserve: '100' },
+        '%'
+      ]);
+      expect(formatCpuText(100)).toEqual([
+        'CPU: ',
+        { value: '100', reserve: '100' },
+        '%'
+      ]);
     });
 
     it('expands to the top-style sum in aggregate mode', () => {
       // 45% of an 8-core box is 360% when each core counts its own 100%
-      expect(formatCpuText(45, 'aggregate', 8)).toEqual('CPU: 360%');
-      expect(formatCpuText(100, 'aggregate', 8)).toEqual('CPU: 800%');
+      expect(formatCpuText(45, 'aggregate', 8)).toEqual([
+        'CPU: ',
+        { value: '360', reserve: '800' },
+        '%'
+      ]);
+      expect(formatCpuText(100, 'aggregate', 8)).toEqual([
+        'CPU: ',
+        { value: '800', reserve: '800' },
+        '%'
+      ]);
+      // the box is sized to the core count's own hundreds, not to the reading:
+      // 5% of 64 cores prints 320 but must hold room for 6400
+      expect(formatCpuText(5, 'aggregate', 64)).toEqual([
+        'CPU: ',
+        { value: '320', reserve: '6400' },
+        '%'
+      ]);
     });
 
     it('leaves the reading normalised in normalised mode', () => {
-      expect(formatCpuText(45, 'normalised', 8)).toEqual('CPU: 45%');
+      expect(formatCpuText(45, 'normalised', 8)).toEqual([
+        'CPU: ',
+        { value: '45', reserve: '100' },
+        '%'
+      ]);
     });
   });
 

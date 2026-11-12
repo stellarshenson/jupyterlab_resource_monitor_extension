@@ -9,3 +9,4 @@ eslint.config.mjs
 .claude
 .agents
 package-lock.json
+tmp

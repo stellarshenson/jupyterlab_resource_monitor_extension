@@ -65,7 +65,7 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: memoryLevel hysteresis + colour-only CSS, 4 jest cases (v0.1.2)
   - log: 2026-07-24 revised: switched text-colour to background tint after round-2 ux found the warn foreground failed AA contrast; percentage now always shown, memory min-width added (v0.1.3)
-- [x] **Flush status text** - memory and CPU values render flush with single spacing and no reserved-width padding, so the rendered width tracks the value; `tabular-nums` keeps digits equal-width within a given digit count
+- [x] **Stable status item width** - each numeric run renders right-aligned in a box reserved to the width of the widest reading the mode can print, measured in the item's own font through a hidden copy of that reading, so a changing value never changes the item's width and the status bar items beside it never move
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: tabular-nums + cpu min-width (v0.1.2)
   - log: 2026-07-24 extended: memory min-width added and percentage always shown so no threshold-crossing reflow (v0.1.3)
@@ -74,6 +74,8 @@ Status bar shows memory usage (with max available) and CPU usage, fed by a serve
   - log: 2026-07-24 revised: round-4 ux found the constant width rested on the U+2007 glyph metric, which varies across client fonts; replaced padding with ch-sized right-aligned columns, browser-measured constant at 167.31px / 69.47px (v0.1.7)
   - log: 2026-07-24 guarded: round-6 ux flagged the invariant had no browser-level guard after five regressions; added Galata test asserting equal boundingBox width and no column overflow across value extremes, negative control confirms it diverges 177->209px without the ch box (v0.1.8)
   - log: 2026-07-25 reversed: constant-width reservation removed at user request - flush text preferred over reserved padding; the ch-column CSS/renderer and the Galata width guard were dropped, jest now asserts the flush strings and that width tracks the value (v1.0.13)
+  - log: 2026-11-12 reversed: reservation restored at user request - a changing reading moved every status bar item to its right (DEF-61); the right-aligned reserved-width boxes return, one numeric run each, and the Galata width guard returns with them (unreleased)
+  - log: 2026-11-12 revised: adversarial review found a `ch` reservation assumes the font's zero advance equals its tabular digit advance; the width now comes from a hidden copy of the reserved reading in the item's own font (unreleased)
 - [x] **Denominator tooltips** - tooltip shows `CPU: n% of N CPUs` and memory used/total/percent with the ceiling's provenance (container limit vs host RAM) and severity word, via `title` (mouse) and `aria-label` on a `role="img"` node (screen reader and touch)
   - log: 2026-07-24 added
   - log: 2026-07-24 closed: title tooltips with cpu_count and mem percent (v0.1.2)

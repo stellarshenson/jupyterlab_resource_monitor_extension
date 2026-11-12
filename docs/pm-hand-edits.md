@@ -1,0 +1,7 @@
+- 2026-11-12T08:45:45Z @kj defects.md 2d91ef02 sha256:cd593e6fb0cdcc67d6ab16cff8d72d590b5bfa837c56095898208f99008f095c: legacy schema; filing DEF-61 by hand in the existing DEF-N format
+- 2026-11-12T08:46:20Z @kj acc-crit-resource-monitor.md 9f3e1b9a sha256:a93163ff82ed2e2d83d553ddffe6821668026a05ffce5f923f2b54ab8ba63bb8: legacy schema; recording a criterion reversal by hand in the existing format
+- 2026-11-12T08:46:33Z @kj acc-crit-resource-monitor.md 86e4ef72 sha256:178017ac1a1a34ec943cd118ad6298fc87532a3233d0f115d42cc7baf80d6275: legacy schema; appending the reversal log line by hand
+- 2026-11-12T09:23:12Z @kj acc-crit-resource-monitor.md 8dbb29c8 sha256:75957f5a1f1b9c443de882304d828130b45d7c941c1cd6a19cedf949f9c24c78: adversarial review plan: correct the recorded reserved-width claims
+- 2026-11-12T09:23:12Z @kj defects.md 0d8e560b sha256:01549a43d93f7e0341457b3de0ac4e71b0cc60ccd4a39047217bd07211d8d113: adversarial review plan: add src/index.ts to the DEF-61 file list and correct the reserved-width claim
+- 2026-11-12T09:25:03Z @kj acc-crit-resource-monitor.md 7f827423 sha256:0fb84944996b95729f49516f6822b9afea91c50943cbe61b798a2519517599b0: adversarial review plan: correct the recorded reserved-width claims
+- 2026-11-12T09:36:33Z @kj defects.md db4f6ed6 sha256:5c653dae1545e19bf4587e21ff1d56834ce2e4f3a1c835f1547f04e5ab763db2: close DEF-61 with the review-confirmed fix and gate evidence
