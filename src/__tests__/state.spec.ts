@@ -118,7 +118,9 @@ describe('resolveDisplaySettings', () => {
     // Driven from the schema rather than a hand-kept list: the two can drift,
     // and a mode the settings editor offers while the code downgrades it is a
     // feature that is dead on arrival with every test still green.
-    const declared = schema.properties.cpuMode.enum;
+    const declared = schema.properties.cpuMode.oneOf.map(
+      (entry: { const: string }) => entry.const
+    );
     expect(declared).toEqual(['normalised', 'aggregate', 'bar', 'grid']);
     declared.forEach(mode => {
       expect(from({ cpuMode: mode }).cpuMode).toEqual(mode);

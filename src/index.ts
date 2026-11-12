@@ -25,12 +25,15 @@ import {
   memoryTooltip
 } from './format';
 
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activate() creates both status items at once
 import { ResourceItem } from './item';
 
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activate() shows the panel at once when the setting is on
 import { KernelUsagePanel } from './kernelpanel';
 
 import { requestAPI } from './request';
 
+// eslint-disable-next-line jupyter/prefer-lazy-imports -- activate() builds the poll state at once
 import {
   initialPollState,
   MAX_POLL_INTERVAL,

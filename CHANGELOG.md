@@ -2,13 +2,23 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.37] - 2026-11-12
+
+Lint only. No functional change to the extension.
+
+### Changed
+
+- The `cpuMode` setting declares its options as `oneOf` with a title per mode instead of a bare `enum`, so the settings editor shows translatable labels and `jupyter/no-schema-enum` is satisfied
+- The three modules the plugin needs during activation carry `eslint-disable-next-line jupyter/prefer-lazy-imports` with the reason, matching the sibling extensions, rather than deferring an import activation needs at once
+- The schema-driven test reads the `oneOf` values, so it still fails if a mode is offered in the settings but dropped by the code; `lint:check` now reports zero warnings and zero errors
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## [1.0.36] - 2026-11-12
 
 ### Fixed
 
 - The memory and CPU status bar items changed width as their values changed, so every status bar item to their right - the audio controls beside them - moved left and right on each poll. Each numeric run now renders right-aligned in a box reserved to the width of the widest reading its mode can print: the memory total for the used value, `100` for the percentage, and the core count's own hundreds in aggregate mode. The reservation is measured from a hidden copy of that reading in the item's own font, so a theme font whose digits do not match the default `ch` advance cannot outgrow it, and a value that loses a digit leaves the item's width and its neighbours unchanged
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## [1.0.35] - 2026-10-31
 
