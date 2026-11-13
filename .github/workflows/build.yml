@@ -177,4 +177,4 @@ jobs:
           # pypi.org pattern is temporal, not permanent - PyPI serves checkers
           # fine and only 404s until the first release, so TODO(post-release):
           # drop it, or a genuinely dead PyPI link passes CI silently forever.
-          ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.* https://pypi.org/project/.* https://www.youtube.com/.*"
+          ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.* https://pypi.org/project/.* https://www.youtube.com/.* https://www.paypal.com/.*"

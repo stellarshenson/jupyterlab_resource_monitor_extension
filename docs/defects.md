@@ -41,6 +41,11 @@ Build, lint, test and CI workflow
 - [x] `DEF-BUILD-41` **jest could not transform an ESM dependency of the icon module** - MINOR; importing `@jupyterlab/ui-components` pulls `@jupyter/react-components`, which ships ESM and was not in the jest `esModules` transform list, so any suite importing the icon failed to parse; fix: added the react/web components, @microsoft and exenv-es6 to the list; `jest.config.js`
   - log: 2026-07-25T00:00:00Z @kj reported: pre-release adversarial review, architect
   - log: 2026-07-25T00:00:00Z @kj fixed: in the same pass; jest 65 (state/item/format/icon 100%, kernelpanel 94%), pytest 34 at 95%, Galata 2, lint 0, tsc --noEmit 0 (v1.0.22)
+- [ ] `DEF-BUILD-64-PAYPAL` **Check Links fails on the PayPal donate badge** - MINOR; CI job Check Links fails with 403: Forbidden on the README donate link; paypal.com refuses the GitHub runner; fix: `https://www.paypal.com/.*` in ignore_links; `.github/workflows/build.yml`
+  - repro: push to main, read the Check Links job
+  - test-tags: MANUAL
+  - root-cause: 2026-11-13T09:28:29Z @kj paypal.com answers the link checker on a GitHub runner with 403; the link itself is valid
+  - log: 2026-11-13T09:28:29Z @kj added
 
 ## Metrics collection `METRIC`
 
