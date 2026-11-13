@@ -6,6 +6,8 @@ import { nullTranslator } from '@jupyterlab/translation';
 
 import { Signal } from '@lumino/signaling';
 
+import { Widget } from '@lumino/widgets';
+
 import { KernelUsagePanel } from '../kernelpanel';
 
 import { requestAPI } from '../request';
@@ -166,6 +168,27 @@ describe('KernelUsagePanel', () => {
     // numbers up until the next poll lands
     tracker.currentChanged.emit(undefined);
     expect(panel.node.textContent).toContain('No kernel');
+  });
+
+  it('stands by while out of view, and in a hidden browser tab', () => {
+    panel = makePanel('k1');
+    const standby = (panel as any)._poll.standby as () => unknown;
+    expect(standby()).toBe(true);
+    Widget.attach(panel, document.body);
+    // in view: the answer is left to the Poll's own hidden-tab rule
+    expect(standby()).toBe('when-hidden');
+  });
+
+  it('polls at once when it comes into view', () => {
+    panel = makePanel('k1');
+    const refresh = jest
+      .spyOn((panel as any)._poll, 'refresh')
+      .mockResolvedValue(undefined);
+    Widget.attach(panel, document.body);
+    panel.hide();
+    expect(refresh).not.toHaveBeenCalled();
+    panel.show();
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it('drops its tracker connection when disposed', () => {

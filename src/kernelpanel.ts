@@ -4,6 +4,8 @@ import { INotebookTracker } from '@jupyterlab/notebook';
 
 import { TranslationBundle } from '@jupyterlab/translation';
 
+import type { Message } from '@lumino/messaging';
+
 import { Poll } from '@lumino/polling';
 
 import { Widget } from '@lumino/widgets';
@@ -80,8 +82,9 @@ export class KernelUsagePanel extends Widget {
         max: MAX_POLL_INTERVAL
       },
       // The whole point of the lease on the server: no polls while the panel is
-      // out of view means no sampling.
-      standby: () => !this.isVisible,
+      // out of view means no sampling. A function replaces the Poll default, so
+      // the hidden browser tab has to be named here too.
+      standby: () => !this.isVisible || 'when-hidden',
       name: 'jupyterlab_resource_monitor_extension:kernels'
     });
 
@@ -100,6 +103,15 @@ export class KernelUsagePanel extends Widget {
     this._tracker.currentChanged.disconnect(this._onNotebookChanged, this);
     this._poll.dispose();
     super.dispose();
+  }
+
+  /**
+   * Poll at once when the panel comes into view: ticks were skipped while it
+   * was hidden, so what it holds is the constructor's text or an old reading.
+   */
+  protected onAfterShow(msg: Message): void {
+    super.onAfterShow(msg);
+    void this._poll.refresh();
   }
 
   private _onNotebookChanged(): void {
