@@ -2,6 +2,18 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.40] - 2026-11-13
+
+### Changed
+
+- Close the link-check defect with its CI evidence
+- Ignore the PayPal donate link in the link check
+
+### Fixed
+
+- Count the ticks of exited children in the kernel CPU figure
+- Stop the kernel poll in a hidden browser tab and poll when the panel is shown
+
 ## [1.0.37] - 2026-11-12
 
 Lint only. No functional change to the extension.
