@@ -125,6 +125,13 @@ Server samplers: host memory and CPU, kernel process tree
   - log: 2026-07-25T00:00:00Z @kj reported: user observed the grid box rendering as a rectangle; not reproducible by measurement at viewports down to 420px on the dev box, which reads 13.00 x 13.00 - the pressure needs a fuller status bar than this one carries
   - log: 2026-07-25T00:00:00Z @kj fixed: `flex: none` on the grid and the bar; Galata `the grid keeps its shape when the status bar runs out of room` squeezes the item below its content width and asserts the box is still square. Mutation-verified against the shipped bundle - restoring `flex: 1 1 auto` fails it with `Expected: 13, Received: 5`, which is also the reproduction the dev box could not otherwise produce (v1.0.27)
   - log: 2026-07-26T00:00:00Z @kj corrected: that note overclaimed. Only the grid half was pinned - the squeeze case runs in grid mode, where no bar node exists, so mutating the bar's declaration left Galata green while the bar measured 2px by 9px. Found independently by the architect and qa-engineer reviews in round 4, the third instance of closing a criterion on untested code. The fallback case now squeezes and measures the bar too; mutation-verified separately (v1.0.27)
+- [x] `DEF-METRIC-65-CHILDEXIT` **Kernel panel CPU reads 0% for the sample in which a child process of the kernel exits** - MEDIUM; a notebook cell runs a subprocess; in the 5s sample in which the subprocess ends, the kernel panel shows 0% CPU although the tree was busy; `jupyterlab_resource_monitor_extension/kernels.py`
+  - evidence: pytest test_cpu_percent_survives_a_child_exit; build_test: Jest 108, pytest 62, Galata 7 green at 1.0.39
+  - repro: run !python -c 'sum(range(10**8))' in a cell with the kernel panel open and read the CPU figure in the sample after the command ends
+  - test-tags: UNIT
+  - root-cause: 2026-11-13T09:44:49Z @kj _read_proc summed only utime and stime, so the ticks of an exited child left the tree total, the total fell below the previous sample and the cpu_ticks >= prev_ticks guard kept 0%
+  - log: 2026-11-13T09:44:49Z @kj added
+  - log: 2026-11-13T09:46:14Z @kj closed
 
 ## Status bar UX `STATUS`
 

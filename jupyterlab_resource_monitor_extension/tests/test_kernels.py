@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 
 from jupyterlab_resource_monitor_extension.kernels import (
@@ -8,15 +9,15 @@ from jupyterlab_resource_monitor_extension.kernels import (
 )
 
 
-def write_proc(root, pid, rss_pages, utime, stime, children=()):
+def write_proc(root, pid, rss_pages, utime, stime, children=(), cutime=0, cstime=0):
     """Lay down the three /proc files the sampler reads for one process."""
     base = root / "proc" / str(pid)
     base.mkdir(parents=True, exist_ok=True)
     (base / "statm").write_text(f"9999 {rss_pages} 0 0 0 0 0\n")
     # pid (comm) state ppid pgrp session tty tpgid flags minflt cminflt majflt
-    # cmajflt utime stime ... - utime/stime are offsets 11/12 after the state
+    # cmajflt utime stime cutime cstime - offsets 11 to 14 after the state
     (base / "stat").write_text(
-        f"{pid} (python3) S 1 1 1 0 -1 0 0 0 0 0 {utime} {stime} 0 0\n"
+        f"{pid} (python3) S 1 1 1 0 -1 0 0 0 0 0 {utime} {stime} {cutime} {cstime}\n"
     )
     task = base / "task" / str(pid)
     task.mkdir(parents=True, exist_ok=True)
@@ -76,6 +77,25 @@ def test_cpu_percent_from_the_tick_delta(tmp_path):
     # percentage down - the assertion is "it computed a delta", not a precise
     # rate.
     assert 0.0 < percent <= 200.0
+
+
+def test_cpu_percent_survives_a_child_exit(tmp_path):
+    # a subprocess of the kernel ends between two samples: its ticks leave its
+    # own /proc entry and land in the parent's cutime, so the tree total must
+    # not fall below the baseline and read 0%
+    write_proc(tmp_path, 100, rss_pages=10, utime=10, stime=0, children=[200])
+    write_proc(tmp_path, 200, rss_pages=5, utime=50, stime=0)
+    sampler = make_sampler(tmp_path)
+    sampler.watch("k1", "python3", 100)
+    sampler.sample_once()  # baseline: 60 ticks
+
+    time.sleep(0.05)
+    # the fixture tree is a tmp folder, so a plain rmtree is the child's exit
+    shutil.rmtree(tmp_path / "proc" / "200")
+    write_proc(tmp_path, 100, rss_pages=10, utime=10, stime=0, cutime=55)
+    sampler.sample_once()
+
+    assert sampler.snapshot("k1")["kernel"]["cpu_percent"] > 0.0
 
 
 def test_lease_expiry_stops_sampling(tmp_path):

@@ -211,9 +211,12 @@ class KernelSampler:
             # comm (field 2) is parenthesised and may itself contain spaces or
             # ')', so parse after the last ')' to keep the offsets stable.
             # After it come state(3), ppid(4), ...; utime is field 14 and stime
-            # field 15, i.e. offsets 11 and 12 counting state as 0.
+            # field 15, i.e. offsets 11 and 12 counting state as 0. cutime and
+            # cstime (fields 16 and 17, offsets 13 and 14) hold the ticks of
+            # waited-for dead children, so the tree total does not fall when a
+            # child exits.
             after = line[line.rfind(")") + 2 :].split()
-            ticks = int(after[11]) + int(after[12])
+            ticks = int(after[11]) + int(after[12]) + int(after[13]) + int(after[14])
         except (OSError, ValueError, IndexError):
             pass
         # scandir rather than glob: glob materialises (and sorts) the whole
